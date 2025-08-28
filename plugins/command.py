@@ -1,4 +1,3 @@
-
 from pyromod.exceptions import ListenerTimeout
 from config import Txt, Config
 from .start import db
@@ -10,53 +9,87 @@ import shutil
 from pyrogram import Client, filters
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
-from tdata_converter import convert_tdata   # external helper (see note)
+from telethon import functions
+from tdata_converter import convert_tdata   # external helper
 
 
-API_ID = Config.API_ID       # from my.telegram.org
+API_ID = Config.API_ID
 API_HASH = Config.API_HASH
+
 
 def login_with_tdata(tdata_path):
     """
-    Convert Telegram Desktop tdata -> Telethon session.
+    Convert Telegram Desktop tdata -> Telethon session and return account info.
     """
     session = convert_tdata(tdata_path, API_ID, API_HASH)
     with TelegramClient(session, API_ID, API_HASH) as client:
         me = client.get_me()
-        return me, client.session.save()
+
+        # Collect info
+        name = (me.first_name or "") + " " + (me.last_name or "")
+        phone = me.phone or "Unknown"
+
+        # Check if 2FA is enabled
+        try:
+            hint = client(functions.account.GetPasswordRequest())
+            twofa = "Y" if hint else "N"
+        except Exception:
+            twofa = "N"
+
+        # Check spam/restricted (simple alive check)
+        try:
+            client(functions.help.GetAppConfigRequest())
+            spam = "N"
+        except Exception:
+            spam = "Y"
+
+        return {
+            "name": name.strip(),
+            "phone": phone,
+            "twofa": twofa,
+            "spam": spam
+        }
 
 
-@bot.on_message(filters.document & filters.private)
+@Client.on_message(filters.document & filters.private)
 async def handle_zip(client, message):
     if not message.document.file_name.endswith(".zip"):
-        return await message.reply("❌ Please send a valid .zip containing tdata.")
+        return await message.reply("❌ Please send a valid .zip containing accounts.")
 
-    # Create temp dir
+    # Temp dir
     temp_dir = tempfile.mkdtemp()
     zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
 
-    # Extract
+    # Extract all
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(temp_dir)
 
-    # Find tdata inside structure
-    tdata_path = None
+    results = []
+    account_num = 1
+
+    # Walk through all extracted dirs
     for root, dirs, files in os.walk(temp_dir):
         if "tdata" in dirs:
             tdata_path = os.path.join(root, "tdata")
-            break
+            try:
+                info = login_with_tdata(tdata_path)
+                results.append(
+                    f"#{account_num}\n"
+                    f"Account Name: {info['name']}\n"
+                    f"Phone Number: {info['phone']}\n"
+                    f"2FA enabled: {info['twofa']}\n"
+                    f"Spam Mute: {info['spam']}\n"
+                )
+            except Exception as e:
+                results.append(f"#{account_num}\nError logging in: {e}\n")
+            account_num += 1
 
-    if not tdata_path:
-        shutil.rmtree(temp_dir)
-        return await message.reply("❌ No tdata folder found inside the .zip")
+    # Write to txt
+    result_txt = os.path.join(temp_dir, "accounts_report.txt")
+    with open(result_txt, "w", encoding="utf-8") as f:
+        f.write("\n\n".join(results))
 
-    try:
-        me, session_string = login_with_tdata(tdata_path)
-        await message.reply(
-            f"✅ Logged in as {me.first_name} (@{me.username or me.id})\n\n"
-            f"🔑 Session String (Telethon):\n`{session_string}`"
-        )
-    except Exception as e:
-        await message.reply(f"⚠️ Error: {e}")
-    finally:
-        shutil.rmtree(temp_dir)
+    # Send back
+    await message.reply_document(result_txt, caption="📄 Accounts Report")
+
+    shutil.rmtree(temp_dir)
