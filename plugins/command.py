@@ -93,6 +93,22 @@ async def handle_zip(client, message):
                     account_num += 1
                     continue
 
+                                # Check for empty files inside tdata
+                bad_files = []
+                for folder_root, _, file_list in os.walk(tdata_path):
+                    for file in file_list:
+                        abs_path = os.path.join(folder_root, file)
+                        if os.path.getsize(abs_path) == 0:
+                            bad_files.append(abs_path)
+
+                if bad_files:
+                    results.append(
+                        f"#{account_num}\nError: Found empty files in tdata:\n" +
+                        "\n".join(bad_files) + "\n"
+                    )
+                    account_num += 1
+                    continue
+
                 try:
                     user_id, info = login_with_tdata(tdata_path)
 
