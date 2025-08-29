@@ -51,64 +51,81 @@ def login_with_tdata(tdata_path):
         }
 
 
+
 @Client.on_message(filters.document & filters.private)
 async def handle_zip(client, message):
-    if not message.document.file_name.endswith(".zip"):
-        return await message.reply("❌ Please send a valid .zip containing accounts.")
+    try:
+        if not message.document.file_name.endswith(".zip"):
+            return await message.reply("❌ Please send a valid .zip containing accounts.")
 
-    temp_dir = tempfile.mkdtemp()
-    zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
+        temp_dir = tempfile.mkdtemp()
+        zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
 
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(temp_dir)
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(temp_dir)
+        except Exception as e:
+            return await message.reply(f"❌ Failed to extract zip: {e}")
 
-    results = []
-    account_num = 1
+        results = []
+        account_num = 1
 
-    # Walk through extracted dirs
-    for root, dirs, files in os.walk(temp_dir):
-        if "tdata" in dirs:
-            tdata_path = os.path.join(root, "tdata")
+        # Walk through extracted dirs
+        for root, dirs, files in os.walk(temp_dir):
+            if "tdata" in dirs:
+                tdata_path = os.path.join(root, "tdata")
 
-            # Repack this tdata as bytes (to save in db)
-            zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-            with zipfile.ZipFile(zip_buffer.name, "w", zipfile.ZIP_DEFLATED) as zipf:
-                for folder_root, _, file_list in os.walk(tdata_path):
-                    for file in file_list:
-                        abs_path = os.path.join(folder_root, file)
-                        rel_path = os.path.relpath(abs_path, root)
-                        zipf.write(abs_path, rel_path)
-            with open(zip_buffer.name, "rb") as f:
-                tdata_bytes = f.read()
-            os.unlink(zip_buffer.name)
+                # Repack this tdata as bytes (to save in db)
+                try:
+                    zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+                    with zipfile.ZipFile(zip_buffer.name, "w", zipfile.ZIP_DEFLATED) as zipf:
+                        for folder_root, _, file_list in os.walk(tdata_path):
+                            for file in file_list:
+                                abs_path = os.path.join(folder_root, file)
+                                rel_path = os.path.relpath(abs_path, root)
+                                zipf.write(abs_path, rel_path)
 
-            try:
-                user_id, info = login_with_tdata(tdata_path)
+                    with open(zip_buffer.name, "rb") as f:
+                        tdata_bytes = f.read()
+                    os.unlink(zip_buffer.name)
+                except Exception as e:
+                    results.append(f"#{account_num}\nError repacking tdata: {e}\n")
+                    account_num += 1
+                    continue
 
-                # Save in DB
-                await db.save_account(user_id, info, tdata_bytes)
+                try:
+                    user_id, info = login_with_tdata(tdata_path)
 
-                results.append(
-                    f"#{account_num}\n"
-                    f"Account Name: {info['name']}\n"
-                    f"Phone Number: {info['phone']}\n"
-                    f"2FA enabled: {info['twofa']}\n"
-                    f"Spam Mute: {info['spam']}\n"
-                )
-            except Exception as e:
-                results.append(f"#{account_num}\nError logging in: {e}\n")
+                    # Save in DB
+                    await db.save_account(user_id, info, tdata_bytes)
 
-            account_num += 1
+                    results.append(
+                        f"#{account_num}\n"
+                        f"Account Name: {info.get('name','?')}\n"
+                        f"Phone Number: {info.get('phone','?')}\n"
+                        f"2FA enabled: {info.get('twofa','?')}\n"
+                        f"Spam Mute: {info.get('spam','?')}\n"
+                    )
+                except Exception as e:
+                    results.append(f"#{account_num}\nError logging in: {e}\n")
 
-    # Write report
-    result_txt = os.path.join(temp_dir, "accounts_report.txt")
-    with open(result_txt, "w", encoding="utf-8") as f:
-        f.write("\n\n".join(results))
+                account_num += 1
 
-    await message.reply_document(result_txt, caption="📄 Accounts Report")
+        # Write report
+        result_txt = os.path.join(temp_dir, "accounts_report.txt")
+        with open(result_txt, "w", encoding="utf-8") as f:
+            f.write("\n\n".join(results))
 
-    shutil.rmtree(temp_dir)
+        await message.reply_document(result_txt, caption="📄 Accounts Report")
 
+    except Exception as e:
+        await message.reply(f"⚠️ Fatal error: {e}")
+
+    finally:
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
 
 async def check_valid_session(tdata_bytes):
     """Check if a stored tdata is still valid."""
