@@ -33,18 +33,8 @@ class Bot(Client):
     async def start(self):
         await super().start()
         me = await self.get_me()
-        temp.ME = me.id
-        temp.U_NAME = me.username
-        temp.B_NAME = me.first_name
-        self.force_channel = Config.FORCE_SUB
-        if Config.FORCE_SUB:
-            try:
-                link = await self.export_chat_invite_link(Config.FORCE_SUB)
-                self.invitelink = link
-            except Exception as e:
-                print(e)
-                print("Make Sure Bot admin in force sub channel")
-                self.force_channel = None
+        
+        
         if Config.WEBHOOK:
             app = web.AppRunner(await web_server())
             await app.setup()
