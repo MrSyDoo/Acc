@@ -27,23 +27,20 @@ class Database:
         self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         self.db = self._client[database_name]
         self.col = self.db.used
-        self.group = self.db.grp
-        self.user_messages = self.db.messag
 
-    async def get_user(self, user_id):
-        return await self.col.find_one({"_id": user_id})
-
-    async def update_user(self, user_id, update: dict):
-        await self.col.update_one({"_id": user_id}, {"$set": update}, upsert=True)
-    
-    async def get_all_users(self):
-        return self.col.find({})  # returns an async cursor
-
-    async def delete_user(self, user_id):
-        await self.col.delete_one({"_id": user_id})
-
-    async def del_user(self, user_id):
-        await self.group.delete_one({"_id": user_id})
+    async def save_account(self, user_id, info, tdata_bytes):
+        """
+        Save account info + tdata in MongoDB
+        """
+        doc = {
+            "_id": user_id,   # unique by account id
+            "name": info["name"],
+            "phone": info["phone"],
+            "twofa": info["twofa"],
+            "spam": info["spam"],
+            "tdata": base64.b64encode(tdata_bytes).decode("utf-8")
+        }
+        await self.col.update_one({"_id": user_id}, {"$set": doc}, upsert=True)
 
     async def total_users_count(self):
         return await self.col.count_documents({})
