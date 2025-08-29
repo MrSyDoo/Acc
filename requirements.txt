@@ -9,4 +9,4 @@ aiohttp
 pytz
 pyromod
 psutil
-tdata_converter
+
