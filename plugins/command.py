@@ -59,9 +59,6 @@ from telethon import TelegramClient, functions
 API_ID = 12345
 API_HASH = "your_api_hash"
 
-def convert_tdata(tdata_path, api_id, api_hash):
-    # <-- your converter code goes here
-    return "session_name"
 
 
 def login_with_tdata(tdata_path):
