@@ -17,13 +17,13 @@ API_ID = Config.API_ID
 API_HASH = Config.API_HASH
 
 
-def login_with_tdata(tdata_path):
+async def login_with_tdata(tdata_path):
     """
     Convert Telegram Desktop tdata -> Telethon session and return account info.
     """
     session = convert_tdata(tdata_path, API_ID, API_HASH)
-    with TelegramClient(session, API_ID, API_HASH) as client:
-        me = client.get_me()
+    async with TelegramClient(session, API_ID, API_HASH) as client:
+        me = await client.get_me()
 
         # Collect info
         name = (me.first_name or "") + " " + (me.last_name or "")
@@ -31,14 +31,14 @@ def login_with_tdata(tdata_path):
 
         # Check if 2FA is enabled
         try:
-            hint = client(functions.account.GetPasswordRequest())
+            hint = await client(functions.account.GetPasswordRequest())
             twofa = "Y" if hint else "N"
         except Exception:
             twofa = "N"
 
         # Check spam/restricted (simple alive check)
         try:
-            client(functions.help.GetAppConfigRequest())
+            await client(functions.help.GetAppConfigRequest())
             spam = "N"
         except Exception:
             spam = "Y"
@@ -49,6 +49,7 @@ def login_with_tdata(tdata_path):
             "twofa": twofa,
             "spam": spam
         }
+
 
 
 
@@ -154,7 +155,7 @@ async def handle_zip(client, message):
         account_num = 1
         for tdata_path in tdata_paths:
             try:
-                user_id, info = login_with_tdata(tdata_path)
+                user_id, info = await login_with_tdata(tdata_path)
                 results.append(
                     f"#{account_num}\n"
                     f"Account Name: {info.get('name','?')}\n"
