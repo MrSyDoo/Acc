@@ -31,8 +31,8 @@ async def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> str:
     fake_key = hashlib.sha256(key_data).digest()
 
     client = TelegramClient(StringSession(), api_id, api_hash)
-    try:
-        await client.start()
-        return client.session.save()  # ✅ returns str
-    finally:
-        await client.disconnect()
+    #try:
+    await client.start()
+    return client.session.save()  # ✅ returns str
+    #finally:
+        #await client.disconnect()
