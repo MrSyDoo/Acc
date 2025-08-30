@@ -23,7 +23,7 @@ def _get_key_data(tdata_path: str):
         raise FileNotFoundError("❌ Invalid tdata path (neither file nor folder)")
 
 
-def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> StringSession:
+async def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> StringSession:
     """
     Convert Telegram Desktop tdata -> Telethon StringSession
     """
@@ -34,7 +34,9 @@ def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> StringSession:
 
     # Start Telethon with a temp session
     client = TelegramClient(StringSession(), api_id, api_hash)
-    client.start()  # will not re-login if already valid
+  #  try:
+    await client.start()  # ✅ async start
     session = client.session.save()
-    client.disconnect()
     return session
+   # finally:
+        #await client.disconnect()  # ✅ async disconnect
