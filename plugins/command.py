@@ -10,7 +10,7 @@ from pyrogram import Client, filters
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon import functions
-from tdata_converter import convert_tdata   # external helper
+  # external helper
 
 
 API_ID = Config.API_ID
@@ -61,34 +61,69 @@ async def login_w_tdata(tdata_path):
 
 import os, tempfile, zipfile, shutil
 from pyrogram import Client, filters
+from telethon import TelegramClient, function
+
+
+
+import os
+import base64
+import hashlib
+import zipfile
+import tempfile
+import shutil
+import rarfile  # pip install rarfile
+
+from telethon.sessions import StringSession
 from telethon import TelegramClient, functions
-
-API_ID = 12345
-API_HASH = "your_api_hash"
+from pyrogram import Client, filters
 
 
 
+
+# --- Helper: read tdata key file
+def _get_key_data(tdata_path: str):
+    if os.path.isdir(tdata_path):
+        key_file = os.path.join(tdata_path, "key_datas")
+        if not os.path.exists(key_file):
+            raise FileNotFoundError("❌ key_datas file not found in tdata folder")
+        with open(key_file, "rb") as f:
+            return f.read()
+    elif os.path.isfile(tdata_path):
+        with open(tdata_path, "rb") as f:
+            return f.read()
+    else:
+        raise FileNotFoundError("❌ Invalid tdata path (neither file nor folder)")
+
+
+# --- Convert tdata -> session string
+async def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> str:
+    key_data = _get_key_data(tdata_path)
+    fake_key = hashlib.sha256(key_data).digest()  # dummy session key
+
+    client = TelegramClient(StringSession(), api_id, api_hash)
+    await client.start()
+    session_str = client.session.save()
+    await client.disconnect()
+    return session_str
+
+
+# --- Login with tdata & fetch account info
 async def login_with_tdata(tdata_path):
-    """
-    Convert Telegram Desktop tdata -> Telethon session and return account info.
-    """
     session_str = await convert_tdata(tdata_path, API_ID, API_HASH)
 
     async with TelegramClient(StringSession(session_str), API_ID, API_HASH) as client:
         me = await client.get_me()
-
-        # Collect info
         name = (me.first_name or "") + " " + (me.last_name or "")
         phone = me.phone or "Unknown"
 
-        # Check if 2FA is enabled
+        # 2FA check
         try:
             hint = await client(functions.account.GetPasswordRequest())
             twofa = "Y" if hint else "N"
         except Exception:
             twofa = "N"
 
-        # Check spam/restricted (simple alive check)
+        # Spam check
         try:
             await client(functions.help.GetAppConfigRequest())
             spam = "N"
@@ -103,9 +138,7 @@ async def login_with_tdata(tdata_path):
         }
 
 
-
-import rarfile  # pip install rarfile
-
+# --- Pyrogram handler
 @Client.on_message(filters.document & filters.private)
 async def handle_zip(client, message):
     try:
@@ -116,7 +149,7 @@ async def handle_zip(client, message):
         zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
         results = []
 
-        # --- Step 1: Extract the ZIP
+        # Step 1: Extract ZIP
         try:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
@@ -124,7 +157,7 @@ async def handle_zip(client, message):
         except Exception as e:
             return await message.reply(f"❌ Failed to extract zip: {e}")
 
-        # --- Step 2: List contents
+        # Step 2: Collect extracted contents
         extracted = []
         for root, dirs, files in os.walk(temp_dir):
             for d in dirs:
@@ -133,13 +166,12 @@ async def handle_zip(client, message):
                 extracted.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
         await message.reply("📂 Extracted contents:\n" + "\n".join(extracted))
 
-        # --- Step 3: Look for tdata folder directly
+        # Step 3: Look for tdata folders or rar files
         tdata_paths = []
         for root, dirs, files in os.walk(temp_dir):
             if "tdata" in dirs:
                 tdata_paths.append(os.path.join(root, "tdata"))
 
-            # --- Step 3b: Handle rar archives
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
@@ -149,7 +181,6 @@ async def handle_zip(client, message):
                         with rarfile.RarFile(rar_path, "r") as rf:
                             rf.extractall(rar_extract_dir)
 
-                        # check if tdata appeared
                         for r2, d2, f2 in os.walk(rar_extract_dir):
                             if "tdata" in d2:
                                 tdata_paths.append(os.path.join(r2, "tdata"))
@@ -159,7 +190,7 @@ async def handle_zip(client, message):
         if not tdata_paths:
             return await message.reply("⚠️ No tdata folders detected in this archive.")
 
-        # --- Step 4: Process each tdata
+        # Step 4: Process each tdata
         account_num = 1
         for tdata_path in tdata_paths:
             try:
@@ -184,6 +215,7 @@ async def handle_zip(client, message):
             shutil.rmtree(temp_dir)
         except Exception:
             pass
+
 
 
                         
