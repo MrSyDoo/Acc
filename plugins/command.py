@@ -52,48 +52,101 @@ def login_with_tdata(tdata_path):
 
 
 
+import os, tempfile, zipfile, shutil
+from pyrogram import Client, filters
+from telethon import TelegramClient, functions
+
+API_ID = 12345
+API_HASH = "your_api_hash"
+
+def convert_tdata(tdata_path, api_id, api_hash):
+    # <-- your converter code goes here
+    return "session_name"
+
+
+def login_with_tdata(tdata_path):
+    """
+    Convert Telegram Desktop tdata -> Telethon session and return account info.
+    """
+    session = convert_tdata(tdata_path, API_ID, API_HASH)
+    with TelegramClient(session, API_ID, API_HASH) as client:
+        me = client.get_me()
+
+        # Collect info
+        name = (me.first_name or "") + " " + (me.last_name or "")
+        phone = me.phone or "Unknown"
+
+        # Check if 2FA is enabled
+        try:
+            hint = client(functions.account.GetPasswordRequest())
+            twofa = "Y" if hint else "N"
+        except Exception:
+            twofa = "N"
+
+        # Check spam/restricted (simple alive check)
+        try:
+            client(functions.help.GetAppConfigRequest())
+            spam = "N"
+        except Exception:
+            spam = "Y"
+
+        return me.id, {
+            "name": name.strip(),
+            "phone": phone,
+            "twofa": twofa,
+            "spam": spam
+        }
+
+
 @Client.on_message(filters.document & filters.private)
 async def handle_zip(client, message):
+    temp_dir = None
     try:
+        # 1. Extension check
         if not message.document.file_name.endswith(".zip"):
             return await message.reply("❌ Please send a valid .zip containing accounts.")
 
+        # 2. Download
         temp_dir = tempfile.mkdtemp()
         zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
 
+        if not os.path.exists(zip_path):
+            return await message.reply("❌ Download failed. File not found.")
+        size = os.path.getsize(zip_path)
+        if size == 0:
+            return await message.reply("❌ File is empty (0 B). Please resend a valid .zip.")
+        await message.reply(f"✅ Zip downloaded: {zip_path} ({size} bytes)")
+
+        # 3. Extract
         try:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
+            await message.reply("✅ Extraction complete.")
         except Exception as e:
             return await message.reply(f"❌ Failed to extract zip: {e}")
 
+        # Debug: show all folders/files extracted
+        extracted_list = []
+        for root, dirs, files in os.walk(temp_dir):
+            for d in dirs:
+                extracted_list.append(f"[DIR] {os.path.join(root, d)}")
+            for f in files:
+                extracted_list.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
+        if extracted_list:
+            await message.reply("📂 Extracted contents:\n" + "\n".join(extracted_list[:50]))
+        else:
+            return await message.reply("❌ No files found after extraction.")
+
+        # 4. Walk and process accounts
         results = []
         account_num = 1
 
-        # Walk through extracted dirs
         for root, dirs, files in os.walk(temp_dir):
             if "tdata" in dirs:
                 tdata_path = os.path.join(root, "tdata")
+                await message.reply(f"🔍 Found tdata folder: {tdata_path}")
 
-                # Repack this tdata as bytes (to save in db)
-                try:
-                    zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-                    with zipfile.ZipFile(zip_buffer.name, "w", zipfile.ZIP_DEFLATED) as zipf:
-                        for folder_root, _, file_list in os.walk(tdata_path):
-                            for file in file_list:
-                                abs_path = os.path.join(folder_root, file)
-                                rel_path = os.path.relpath(abs_path, root)
-                                zipf.write(abs_path, rel_path)
-
-                    with open(zip_buffer.name, "rb") as f:
-                        tdata_bytes = f.read()
-                    os.unlink(zip_buffer.name)
-                except Exception as e:
-                    results.append(f"#{account_num}\nError repacking tdata: {e}\n")
-                    account_num += 1
-                    continue
-
-                                # Check for empty files inside tdata
+                # Check for empty files inside tdata
                 bad_files = []
                 for folder_root, _, file_list in os.walk(tdata_path):
                     for file in file_list:
@@ -108,13 +161,10 @@ async def handle_zip(client, message):
                     )
                     account_num += 1
                     continue
-
+                await message.reply(f"{account_num}")
+                # Try login
                 try:
                     user_id, info = login_with_tdata(tdata_path)
-
-                    # Save in DB
-                    await db.save_account(user_id, info, tdata_bytes)
-
                     results.append(
                         f"#{account_num}\n"
                         f"Account Name: {info.get('name','?')}\n"
@@ -126,22 +176,29 @@ async def handle_zip(client, message):
                     results.append(f"#{account_num}\nError logging in: {e}\n")
 
                 account_num += 1
+                await message.reply(f"{account_num} {results}")
 
-        # Write report
-        result_txt = os.path.join(temp_dir, "accounts_report.txt")
-        with open(result_txt, "w", encoding="utf-8") as f:
-            f.write("\n\n".join(results))
-
-        await message.reply_document(result_txt, caption="📄 Accounts Report")
+        # 5. Report
+        if not results:
+            await message.reply("⚠️ No tdata folders detected in this zip.")
+        else:
+            result_txt = os.path.join(temp_dir, "accounts_report.txt")
+            with open(result_txt, "w", encoding="utf-8") as f:
+                f.write("\n\n".join(results))
+            await message.reply_document(result_txt, caption="📄 Accounts Report")
 
     except Exception as e:
         await message.reply(f"⚠️ Fatal error: {e}")
 
     finally:
-        try:
-            shutil.rmtree(temp_dir)
-        except Exception:
-            pass
+        if temp_dir:
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+
+
+                        
 
 async def check_valid_session(tdata_bytes):
     """Check if a stored tdata is still valid."""
