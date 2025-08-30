@@ -22,7 +22,10 @@ async def login_with_tdata(tdata_path):
     Convert Telegram Desktop tdata -> Telethon session and return account info.
     """
     session = convert_tdata(tdata_path, API_ID, API_HASH)
-    async with TelegramClient(session, API_ID, API_HASH) as client:
+    client = TelegramClient(session, API_ID, API_HASH)
+
+    try:
+        await client.start()
         me = await client.get_me()
 
         # Collect info
@@ -49,6 +52,9 @@ async def login_with_tdata(tdata_path):
             "twofa": twofa,
             "spam": spam
         }
+
+    finally:
+        await client.disconnect()
 
 
 
