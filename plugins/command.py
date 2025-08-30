@@ -59,25 +59,16 @@ async def login_w_tdata(tdata_path):
 
 
 
-import os, tempfile, zipfile, shutil
-from pyrogram import Client, filters
-from telethon import TelegramClient, function
-
-
-
 import os
-import base64
-import hashlib
-import zipfile
 import tempfile
+import zipfile
 import shutil
-import rarfile  # pip install rarfile
+import rarfile
+import traceback
 
 from telethon.sessions import StringSession
 from telethon import TelegramClient, functions
 from pyrogram import Client, filters
-
-
 
 
 # --- Helper: read tdata key file
@@ -141,6 +132,7 @@ async def login_with_tdata(tdata_path):
 # --- Pyrogram handler
 @Client.on_message(filters.document & filters.private)
 async def handle_zip(client, message):
+    temp_dir = None
     try:
         if not message.document.file_name.endswith(".zip"):
             return await message.reply("❌ Please send a valid .zip containing accounts.")
@@ -155,7 +147,8 @@ async def handle_zip(client, message):
                 zip_ref.extractall(temp_dir)
             await message.reply(f"✅ Extraction complete at: {temp_dir}")
         except Exception as e:
-            return await message.reply(f"❌ Failed to extract zip: {e}")
+            tb = traceback.format_exc()
+            return await message.reply(f"❌ Failed to extract zip:\n{e}\n\n{tb}")
 
         # Step 2: Collect extracted contents
         extracted = []
@@ -163,7 +156,8 @@ async def handle_zip(client, message):
             for d in dirs:
                 extracted.append(f"[DIR] {os.path.join(root, d)}")
             for f in files:
-                extracted.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
+                file_path = os.path.join(root, f)
+                extracted.append(f"[FILE] {file_path} ({os.path.getsize(file_path)} B)")
         await message.reply("📂 Extracted contents:\n" + "\n".join(extracted))
 
         # Step 3: Look for tdata folders or rar files
@@ -185,7 +179,8 @@ async def handle_zip(client, message):
                             if "tdata" in d2:
                                 tdata_paths.append(os.path.join(r2, "tdata"))
                     except Exception as e:
-                        results.append(f"⚠️ Failed to extract rar {f}: {e}")
+                        tb = traceback.format_exc()
+                        results.append(f"⚠️ Failed to extract rar {f}: {e}\n\n{tb}")
 
         if not tdata_paths:
             return await message.reply("⚠️ No tdata folders detected in this archive.")
@@ -203,18 +198,23 @@ async def handle_zip(client, message):
                     f"Spam Mute: {info.get('spam','?')}\n"
                 )
             except Exception as e:
-                results.append(f"#{account_num}\nError logging in: {e}\n")
+                tb = traceback.format_exc()
+                results.append(f"#{account_num}\n❌ Error logging in: {e}\n\n{tb}")
             account_num += 1
 
         await message.reply("📄 Accounts Report:\n\n" + "\n\n".join(results))
 
     except Exception as e:
-        await message.reply(f"⚠️ Fatal error: {e}")
+        tb = traceback.format_exc()
+        await message.reply(f"⚠️ Fatal error: {e}\n\n{tb}")
     finally:
-        try:
-            shutil.rmtree(temp_dir)
-        except Exception:
-            pass
+        if temp_dir:
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+            
+            
 
 
 
