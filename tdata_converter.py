@@ -23,20 +23,16 @@ def _get_key_data(tdata_path: str):
         raise FileNotFoundError("❌ Invalid tdata path (neither file nor folder)")
 
 
-async def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> StringSession:
+async def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> str:
     """
-    Convert Telegram Desktop tdata -> Telethon StringSession
+    Convert Telegram Desktop tdata -> Telethon session string
     """
-    # This is a simplified fake derivation (for real use, full crypto is required).
-    # Here we just hash key_datas as session key placeholder.
     key_data = _get_key_data(tdata_path)
     fake_key = hashlib.sha256(key_data).digest()
 
-    # Start Telethon with a temp session
     client = TelegramClient(StringSession(), api_id, api_hash)
-  #  try:
-    await client.start()  # ✅ async start
-    session = client.session.save()
-    return session
-   # finally:
-        #await client.disconnect()  # ✅ async disconnect
+    try:
+        await client.start()
+        return client.session.save()  # ✅ returns str
+    finally:
+        await client.disconnect()
