@@ -98,104 +98,86 @@ def login_with_tdata(tdata_path):
         }
 
 
+import rarfile  # pip install rarfile
+
 @Client.on_message(filters.document & filters.private)
 async def handle_zip(client, message):
-    temp_dir = None
     try:
-        # 1. Extension check
         if not message.document.file_name.endswith(".zip"):
             return await message.reply("❌ Please send a valid .zip containing accounts.")
 
-        # 2. Download
         temp_dir = tempfile.mkdtemp()
         zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
+        results = []
 
-        if not os.path.exists(zip_path):
-            return await message.reply("❌ Download failed. File not found.")
-        size = os.path.getsize(zip_path)
-        if size == 0:
-            return await message.reply("❌ File is empty (0 B). Please resend a valid .zip.")
-        await message.reply(f"✅ Zip downloaded: {zip_path} ({size} bytes)")
-
-        # 3. Extract
+        # --- Step 1: Extract the ZIP
         try:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
-            await message.reply("✅ Extraction complete.")
+            await message.reply(f"✅ Extraction complete at: {temp_dir}")
         except Exception as e:
             return await message.reply(f"❌ Failed to extract zip: {e}")
 
-        # Debug: show all folders/files extracted
-        extracted_list = []
+        # --- Step 2: List contents
+        extracted = []
         for root, dirs, files in os.walk(temp_dir):
             for d in dirs:
-                extracted_list.append(f"[DIR] {os.path.join(root, d)}")
+                extracted.append(f"[DIR] {os.path.join(root, d)}")
             for f in files:
-                extracted_list.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
-        if extracted_list:
-            await message.reply("📂 Extracted contents:\n" + "\n".join(extracted_list[:50]))
-        else:
-            return await message.reply("❌ No files found after extraction.")
+                extracted.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
+        await message.reply("📂 Extracted contents:\n" + "\n".join(extracted))
 
-        # 4. Walk and process accounts
-        results = []
-        account_num = 1
-
+        # --- Step 3: Look for tdata folder directly
+        tdata_paths = []
         for root, dirs, files in os.walk(temp_dir):
             if "tdata" in dirs:
-                tdata_path = os.path.join(root, "tdata")
-                await message.reply(f"🔍 Found tdata folder: {tdata_path}")
+                tdata_paths.append(os.path.join(root, "tdata"))
 
-                # Check for empty files inside tdata
-                bad_files = []
-                for folder_root, _, file_list in os.walk(tdata_path):
-                    for file in file_list:
-                        abs_path = os.path.join(folder_root, file)
-                        if os.path.getsize(abs_path) == 0:
-                            bad_files.append(abs_path)
+            # --- Step 3b: Handle rar archives
+            for f in files:
+                if f.lower().endswith(".rar"):
+                    rar_path = os.path.join(root, f)
+                    try:
+                        rar_extract_dir = os.path.join(root, "rar_extracted")
+                        os.makedirs(rar_extract_dir, exist_ok=True)
+                        with rarfile.RarFile(rar_path, "r") as rf:
+                            rf.extractall(rar_extract_dir)
 
-                if bad_files:
-                    results.append(
-                        f"#{account_num}\nError: Found empty files in tdata:\n" +
-                        "\n".join(bad_files) + "\n"
-                    )
-                    account_num += 1
-                    continue
-                await message.reply(f"{account_num}")
-                # Try login
-                try:
-                    user_id, info = login_with_tdata(tdata_path)
-                    results.append(
-                        f"#{account_num}\n"
-                        f"Account Name: {info.get('name','?')}\n"
-                        f"Phone Number: {info.get('phone','?')}\n"
-                        f"2FA enabled: {info.get('twofa','?')}\n"
-                        f"Spam Mute: {info.get('spam','?')}\n"
-                    )
-                except Exception as e:
-                    results.append(f"#{account_num}\nError logging in: {e}\n")
+                        # check if tdata appeared
+                        for r2, d2, f2 in os.walk(rar_extract_dir):
+                            if "tdata" in d2:
+                                tdata_paths.append(os.path.join(r2, "tdata"))
+                    except Exception as e:
+                        results.append(f"⚠️ Failed to extract rar {f}: {e}")
 
-                account_num += 1
-                await message.reply(f"{account_num} {results}")
+        if not tdata_paths:
+            return await message.reply("⚠️ No tdata folders detected in this archive.")
 
-        # 5. Report
-        if not results:
-            await message.reply("⚠️ No tdata folders detected in this zip.")
-        else:
-            result_txt = os.path.join(temp_dir, "accounts_report.txt")
-            with open(result_txt, "w", encoding="utf-8") as f:
-                f.write("\n\n".join(results))
-            await message.reply_document(result_txt, caption="📄 Accounts Report")
+        # --- Step 4: Process each tdata
+        account_num = 1
+        for tdata_path in tdata_paths:
+            try:
+                user_id, info = login_with_tdata(tdata_path)
+                results.append(
+                    f"#{account_num}\n"
+                    f"Account Name: {info.get('name','?')}\n"
+                    f"Phone Number: {info.get('phone','?')}\n"
+                    f"2FA enabled: {info.get('twofa','?')}\n"
+                    f"Spam Mute: {info.get('spam','?')}\n"
+                )
+            except Exception as e:
+                results.append(f"#{account_num}\nError logging in: {e}\n")
+            account_num += 1
+
+        await message.reply("📄 Accounts Report:\n\n" + "\n\n".join(results))
 
     except Exception as e:
         await message.reply(f"⚠️ Fatal error: {e}")
-
     finally:
-        if temp_dir:
-            try:
-                shutil.rmtree(temp_dir)
-            except Exception:
-                pass
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
 
 
                         
