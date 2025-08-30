@@ -65,104 +65,101 @@ import zipfile
 import shutil
 import rarfile
 import traceback
+import asyncio
 import hashlib
 
 from telethon.sessions import StringSession
 from telethon import TelegramClient, functions
 from pyrogram import Client, filters
 
-API_ID = 12345      # put your API ID
-API_HASH = "xxxxx"  # put your API hash
 
 
 # --- Helper: read tdata key file
 def _get_key_data(tdata_path: str):
-    try:
-        if os.path.isdir(tdata_path):
-            key_file = os.path.join(tdata_path, "key_datas")
-            if not os.path.exists(key_file):
-                raise FileNotFoundError("❌ key_datas file not found in tdata folder")
-            with open(key_file, "rb") as f:
-                return f.read()
-        elif os.path.isfile(tdata_path):
-            with open(tdata_path, "rb") as f:
-                return f.read()
-        else:
-            raise FileNotFoundError("❌ Invalid tdata path (neither file nor folder)")
-    except Exception as e:
-        raise RuntimeError(f"_get_key_data failed for {tdata_path}: {e}")
+    if os.path.isdir(tdata_path):
+        key_file = os.path.join(tdata_path, "key_datas")
+        if not os.path.exists(key_file):
+            raise FileNotFoundError("❌ key_datas file not found in tdata folder")
+        with open(key_file, "rb") as f:
+            return f.read()
+    elif os.path.isfile(tdata_path):
+        with open(tdata_path, "rb") as f:
+            return f.read()
+    else:
+        raise FileNotFoundError("❌ Invalid tdata path (neither file nor folder)")
 
 
 # --- Convert tdata -> session string
 async def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> str:
-    try:
-        key_data = _get_key_data(tdata_path)
-        fake_key = hashlib.sha256(key_data).digest()  # dummy session key
+    key_data = _get_key_data(tdata_path)
+    fake_key = hashlib.sha256(key_data).digest()  # dummy session key
 
-        client = TelegramClient(StringSession(), api_id, api_hash)
-        await client.start()
-        session_str = client.session.save()
-        await client.disconnect()
-        return session_str
-    except Exception as e:
-        tb = traceback.format_exc()
-        raise RuntimeError(f"convert_tdata failed: {e}\n{tb}")
+    client = TelegramClient(StringSession(), api_id, api_hash)
+    await client.start()
+    session_str = client.session.save()
+    await client.disconnect()
+    return session_str
 
 
 # --- Login with tdata & fetch account info
 async def login_with_tdata(tdata_path):
-    try:
-        session_str = await convert_tdata(tdata_path, API_ID, API_HASH)
+    session_str = await convert_tdata(tdata_path, API_ID, API_HASH)
 
-        async with TelegramClient(StringSession(session_str), API_ID, API_HASH) as client:
-            me = await client.get_me()
-            name = (me.first_name or "") + " " + (me.last_name or "")
-            phone = me.phone or "Unknown"
+    async with TelegramClient(StringSession(session_str), API_ID, API_HASH) as client:
+        me = await client.get_me()
+        name = (me.first_name or "") + " " + (me.last_name or "")
+        phone = me.phone or "Unknown"
 
-            # 2FA check
-            try:
-                hint = await client(functions.account.GetPasswordRequest())
-                twofa = "Y" if hint else "N"
-            except Exception:
-                twofa = "N"
+        # 2FA check
+        try:
+            hint = await client(functions.account.GetPasswordRequest())
+            twofa = "Y" if hint else "N"
+        except Exception:
+            twofa = "N"
 
-            # Spam check
-            try:
-                await client(functions.help.GetAppConfigRequest())
-                spam = "N"
-            except Exception:
-                spam = "Y"
+        # Spam check
+        try:
+            await client(functions.help.GetAppConfigRequest())
+            spam = "N"
+        except Exception:
+            spam = "Y"
 
-            return me.id, {
-                "name": name.strip(),
-                "phone": phone,
-                "twofa": twofa,
-                "spam": spam
-            }
-    except Exception as e:
-        tb = traceback.format_exc()
-        raise RuntimeError(f"login_with_tdata failed: {e}\n{tb}")
+        return me.id, {
+            "name": name.strip(),
+            "phone": phone,
+            "twofa": twofa,
+            "spam": spam
+        }
 
 
 # --- Pyrogram handler
 @Client.on_message(filters.document & filters.private)
 async def handle_zip(client, message):
     temp_dir = None
+    progress_task = None
     try:
         if not message.document.file_name.endswith(".zip"):
             return await message.reply("❌ Please send a valid .zip containing accounts.")
 
         temp_dir = tempfile.mkdtemp()
+        zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
+        await message.reply(f"📥 File downloaded to: {zip_path}")
+
+        # --- Background progress notifier
+        async def progress_notifier():
+            while True:
+                await asyncio.sleep(60)
+                try:
+                    await message.reply("⏳ Still working on it, please wait...")
+                except Exception:
+                    pass
+
+        progress_task = asyncio.create_task(progress_notifier())
+
         results = []
 
-        # Step 1: Download
-        try:
-            zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
-        except Exception as e:
-            tb = traceback.format_exc()
-            return await message.reply(f"❌ Failed to download file:\n{e}\n\n{tb}")
-
-        # Step 2: Extract ZIP
+        # Step 1: Extract ZIP
+        await message.reply("📦 Extracting zip...")
         try:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
@@ -171,52 +168,48 @@ async def handle_zip(client, message):
             tb = traceback.format_exc()
             return await message.reply(f"❌ Failed to extract zip:\n{e}\n\n{tb}")
 
-        # Step 3: Collect extracted contents
+        # Step 2: Collect extracted contents
         extracted = []
-        try:
-            for root, dirs, files in os.walk(temp_dir):
-                for d in dirs:
-                    extracted.append(f"[DIR] {os.path.join(root, d)}")
-                for f in files:
-                    file_path = os.path.join(root, f)
-                    extracted.append(f"[FILE] {file_path} ({os.path.getsize(file_path)} B)")
-            await message.reply("📂 Extracted contents:\n" + "\n".join(extracted))
-        except Exception as e:
-            tb = traceback.format_exc()
-            await message.reply(f"⚠️ Failed to list extracted files:\n{e}\n\n{tb}")
+        for root, dirs, files in os.walk(temp_dir):
+            for d in dirs:
+                extracted.append(f"[DIR] {os.path.join(root, d)}")
+            for f in files:
+                file_path = os.path.join(root, f)
+                extracted.append(f"[FILE] {file_path} ({os.path.getsize(file_path)} B)")
+        await message.reply("📂 Extracted contents:\n" + "\n".join(extracted))
 
-        # Step 4: Look for tdata folders or rar files
+        # Step 3: Look for tdata folders or rar files
+        await message.reply("🔍 Searching for tdata folders and RAR files...")
         tdata_paths = []
-        try:
-            for root, dirs, files in os.walk(temp_dir):
-                if "tdata" in dirs:
-                    tdata_paths.append(os.path.join(root, "tdata"))
+        for root, dirs, files in os.walk(temp_dir):
+            if "tdata" in dirs:
+                tdata_paths.append(os.path.join(root, "tdata"))
 
-                for f in files:
-                    if f.lower().endswith(".rar"):
-                        rar_path = os.path.join(root, f)
-                        try:
-                            rar_extract_dir = os.path.join(root, "rar_extracted")
-                            os.makedirs(rar_extract_dir, exist_ok=True)
-                            with rarfile.RarFile(rar_path, "r") as rf:
-                                rf.extractall(rar_extract_dir)
+            for f in files:
+                if f.lower().endswith(".rar"):
+                    rar_path = os.path.join(root, f)
+                    try:
+                        rar_extract_dir = os.path.join(root, "rar_extracted")
+                        os.makedirs(rar_extract_dir, exist_ok=True)
+                        with rarfile.RarFile(rar_path, "r") as rf:
+                            rf.extractall(rar_extract_dir)
 
-                            for r2, d2, f2 in os.walk(rar_extract_dir):
-                                if "tdata" in d2:
-                                    tdata_paths.append(os.path.join(r2, "tdata"))
-                        except Exception as e:
-                            tb = traceback.format_exc()
-                            results.append(f"⚠️ Failed to extract rar {f}: {e}\n\n{tb}")
-        except Exception as e:
-            tb = traceback.format_exc()
-            await message.reply(f"⚠️ Error scanning archive for tdata:\n{e}\n\n{tb}")
+                        for r2, d2, f2 in os.walk(rar_extract_dir):
+                            if "tdata" in d2:
+                                tdata_paths.append(os.path.join(r2, "tdata"))
+                        await message.reply(f"📂 RAR extracted: {rar_path}")
+                    except Exception as e:
+                        tb = traceback.format_exc()
+                        results.append(f"⚠️ Failed to extract rar {f}: {e}\n\n{tb}")
 
         if not tdata_paths:
             return await message.reply("⚠️ No tdata folders detected in this archive.")
 
-        # Step 5: Process each tdata
+        # Step 4: Process each tdata
+        await message.reply("👤 Starting tdata login process...")
         account_num = 1
         for tdata_path in tdata_paths:
+            await message.reply(f"➡️ Processing tdata #{account_num} at {tdata_path}")
             try:
                 user_id, info = await login_with_tdata(tdata_path)
                 results.append(
@@ -226,22 +219,28 @@ async def handle_zip(client, message):
                     f"2FA enabled: {info.get('twofa','?')}\n"
                     f"Spam Mute: {info.get('spam','?')}\n"
                 )
+                await message.reply(f"✅ Finished tdata #{account_num}")
             except Exception as e:
                 tb = traceback.format_exc()
                 results.append(f"#{account_num}\n❌ Error logging in: {e}\n\n{tb}")
+                await message.reply(f"❌ Error in tdata #{account_num}: {e}")
             account_num += 1
 
         await message.reply("📄 Accounts Report:\n\n" + "\n\n".join(results))
 
     except Exception as e:
         tb = traceback.format_exc()
-        await message.reply(f"⚠️ Fatal error in handle_zip: {e}\n\n{tb}")
+        await message.reply(f"⚠️ Fatal error: {e}\n\n{tb}")
     finally:
+        if progress_task:
+            progress_task.cancel()
         if temp_dir:
             try:
                 shutil.rmtree(temp_dir)
             except Exception:
                 pass
+
+
 
         
 
