@@ -133,112 +133,96 @@ async def login_with_tdata(tdata_path):
 
 
 # --- Pyrogram handler
-@Client.on_message(filters.document & filters.private)
+import os
+import asyncio
+import tempfile
+import shutil
+import zipfile
+import rarfile
+
+from pyrogram import Client, filters
+from telethon.errors import SessionPasswordNeededError
+from opentele.td import TDesktop
+from opentele.api import UseCurrentSession
+
+
+@Client.on_message(filters.document)
 async def handle_zip(client, message):
-    temp_dir = None
-    progress_task = None
     try:
-        if not message.document.file_name.endswith(".zip"):
-            return await message.reply("❌ Please send a valid .zip containing accounts.")
+        # Step 1: Download
+        await message.reply("📥 Downloading file...")
+        tempdir = tempfile.mkdtemp()
+        file_path = await message.download(file_name=tempdir)
 
-        temp_dir = tempfile.mkdtemp()
-        zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
-        await message.reply(f"📥 File downloaded to: {zip_path}")
+        await message.reply(f"✅ File downloaded: `{file_path}`")
 
-        # --- Background progress notifier
-        async def progress_notifier():
-            while True:
-                await asyncio.sleep(60)
-                try:
-                    await message.reply("⏳ Still working on it, please wait...")
-                except Exception:
-                    pass
+        # Step 2: Extract if zip/rar
+        extract_dir = tempfile.mkdtemp()
+        if file_path.endswith(".zip"):
+            with zipfile.ZipFile(file_path, 'r') as z:
+                z.extractall(extract_dir)
+            await message.reply(f"📦 ZIP extracted to: `{extract_dir}`")
+        elif file_path.endswith(".rar"):
+            with rarfile.RarFile(file_path, 'r') as r:
+                r.extractall(extract_dir)
+            await message.reply(f"📦 RAR extracted to: `{extract_dir}`")
+        else:
+            await message.reply("❌ Not a zip/rar file.")
+            return
 
-        progress_task = asyncio.create_task(progress_notifier())
-
-        results = []
-
-        # Step 1: Extract ZIP
-        await message.reply("📦 Extracting zip...")
-        try:
-            with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                zip_ref.extractall(temp_dir)
-            await message.reply(f"✅ Extraction complete at: {temp_dir}")
-        except Exception as e:
-            tb = traceback.format_exc()
-            return await message.reply(f"❌ Failed to extract zip:\n{e}\n\n{tb}")
-
-        # Step 2: Collect extracted contents
-        extracted = []
-        for root, dirs, files in os.walk(temp_dir):
-            for d in dirs:
-                extracted.append(f"[DIR] {os.path.join(root, d)}")
-            for f in files:
-                file_path = os.path.join(root, f)
-                extracted.append(f"[FILE] {file_path} ({os.path.getsize(file_path)} B)")
-        await message.reply("📂 Extracted contents:\n" + "\n".join(extracted))
-
-        # Step 3: Look for tdata folders or rar files
-        await message.reply("🔍 Searching for tdata folders and RAR files...")
-        tdata_paths = []
-        for root, dirs, files in os.walk(temp_dir):
+        # Step 3: Search for tdata
+        tdata_path = None
+        for root, dirs, files in os.walk(extract_dir):
             if "tdata" in dirs:
-                tdata_paths.append(os.path.join(root, "tdata"))
+                tdata_path = os.path.join(root, "tdata")
+                break
 
-            for f in files:
-                if f.lower().endswith(".rar"):
-                    rar_path = os.path.join(root, f)
-                    try:
-                        rar_extract_dir = os.path.join(root, "rar_extracted")
-                        os.makedirs(rar_extract_dir, exist_ok=True)
-                        with rarfile.RarFile(rar_path, "r") as rf:
-                            rf.extractall(rar_extract_dir)
+        if not tdata_path:
+            await message.reply("❌ No `tdata` folder found in archive.")
+            return
 
-                        for r2, d2, f2 in os.walk(rar_extract_dir):
-                            if "tdata" in d2:
-                                tdata_paths.append(os.path.join(r2, "tdata"))
-                        await message.reply(f"📂 RAR extracted: {rar_path}")
-                    except Exception as e:
-                        tb = traceback.format_exc()
-                        results.append(f"⚠️ Failed to extract rar {f}: {e}\n\n{tb}")
+        await message.reply(f"👤 Found tdata at: `{tdata_path}`")
 
-        if not tdata_paths:
-            return await message.reply("⚠️ No tdata folders detected in this archive.")
+        # Step 4: Convert to Telethon session
+        try:
+            tdesk = TDesktop(tdata_path)
+            if not tdesk.isLoaded():
+                await message.reply("⚠️ Failed to load tdata (maybe corrupted?).")
+                return
 
-        # Step 4: Process each tdata
-        await message.reply("👤 Starting tdata login process...")
-        account_num = 1
-        for tdata_path in tdata_paths:
-            await message.reply(f"➡️ Processing tdata #{account_num} at {tdata_path}")
+            tele_client = await tdesk.ToTelethon(session="telethon.session", flag=UseCurrentSession)
+
+            await tele_client.connect()
+            if not await tele_client.is_user_authorized():
+                await message.reply("⚠️ Client not authorized, needs login (2FA?).")
+                return
+
+            me = await tele_client.get_me()
+            await message.reply(f"✅ Logged in as: **{me.first_name}** (ID: `{me.id}`)")
+
+            # Show active sessions
             try:
-                user_id, info = await login_with_tdata(tdata_path)
-                results.append(
-                    f"#{account_num}\n"
-                    f"Account Name: {info.get('name','?')}\n"
-                    f"Phone Number: {info.get('phone','?')}\n"
-                    f"2FA enabled: {info.get('twofa','?')}\n"
-                    f"Spam Mute: {info.get('spam','?')}\n"
-                )
-                await message.reply(f"✅ Finished tdata #{account_num}")
+                await tele_client.PrintSessions()
             except Exception as e:
-                tb = traceback.format_exc()
-                results.append(f"#{account_num}\n❌ Error logging in: {e}\n\n{tb}")
-                await message.reply(f"❌ Error in tdata #{account_num}: {e}")
-            account_num += 1
+                await message.reply(f"⚠️ Could not print sessions: `{e}`")
 
-        await message.reply("📄 Accounts Report:\n\n" + "\n\n".join(results))
+            await tele_client.disconnect()
+
+        except SessionPasswordNeededError:
+            await message.reply("❌ Account requires 2FA password (not provided).")
+        except Exception as e:
+            await message.reply(f"❌ Error during login: `{str(e)}`")
 
     except Exception as e:
-        tb = traceback.format_exc()
-        await message.reply(f"⚠️ Fatal error: {e}\n\n{tb}")
+        await message.reply(f"❌ Top-level error: `{str(e)}`")
     finally:
-        if progress_task:
-            progress_task.cancel()
-        if temp_dir:
-            try:
-                shutil.rmtree(temp_dir)
-            except Exception:
-                pass
+        # Cleanup
+        try:
+            shutil.rmtree(tempdir)
+            shutil.rmtree(extract_dir)
+        except:
+            pass
+
 
 
 
