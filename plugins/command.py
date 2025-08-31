@@ -225,14 +225,7 @@ async def handle_archive(client, message):
             pass
 
 
-    except Exception as e:
-        await message.reply(f"❌ Top-level error: `{str(e)}`")
-    finally:
-        try:
-            shutil.rmtree(tempdir)
-            shutil.rmtree(extract_dir)
-        except:
-            pass
+    
 
 
 
