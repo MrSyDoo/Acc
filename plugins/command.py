@@ -11,6 +11,7 @@ from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon import functions
   # external helper
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 
 
 API_ID = Config.API_ID
@@ -294,73 +295,97 @@ async def handle_archive(client, message):
 
                         
 
-async def check_valid_session(tdata_bytes):
-    """Check if a stored tdata is still valid."""
+import os
+import io
+import re
+import base64
+import shutil
+import zipfile
+import tempfile
+from telethon import TelegramClient
+from tdata_converter import convert_tdata
+
+
+async def check_valid_session(tdata_b64: str):
+    """
+    Check if a stored tdata (base64) is still valid.
+    Returns: (valid: bool, me: User | None, session: Telethon.Session | None)
+    """
     temp_dir = tempfile.mkdtemp()
-    tdata_path = os.path.join(temp_dir, "tdata.zip")
-
-    with open(tdata_path, "wb") as f:
-        f.write(base64.b64decode(tdata_bytes))
-
-    # Extract
-    extract_dir = os.path.join(temp_dir, "tdata")
-    with zipfile.ZipFile(tdata_path, "r") as zip_ref:
-        zip_ref.extractall(extract_dir)
+    tdata_zip = os.path.join(temp_dir, "tdata.zip")
 
     try:
-        from tdata_converter import convert_tdata
+        # Save zip
+        with open(tdata_zip, "wb") as f:
+            f.write(base64.b64decode(tdata_b64))
+
+        # Extract
+        extract_dir = os.path.join(temp_dir, "tdata")
+        with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
+            zip_ref.extractall(extract_dir)
+
+        # Convert tdata → Telethon session
         session = convert_tdata(extract_dir, API_ID, API_HASH)
-        with TelegramClient(session, API_ID, API_HASH) as client:
-            if client.is_user_authorized():
-                me = client.get_me()
+
+        async with TelegramClient(session, API_ID, API_HASH) as client:
+            if await client.is_user_authorized():
+                me = await client.get_me()
                 return True, me, session
             else:
                 return False, None, None
-    except Exception:
+
+    except Exception as e:
+        print(f"[check_valid_session] Error: {e}")
         return False, None, None
+
     finally:
-        shutil.rmtree(temp_dir)
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 @Client.on_message(filters.command("retrieve") & filters.private)
 async def retrieve_account(client, message):
     if len(message.command) < 2:
-        return await message.reply("⚠️ Usage: `/retrieve user_id`", quote=True)
+        return await message.reply("⚠️ Usage: `/retrieve account_number`", quote=True)
 
-    user_id = int(message.command[1])
-    doc = await db.col.find_one({"_id": user_id})
+    try:
+        acc_num = int(message.command[1])
+    except ValueError:
+        return await message.reply("❌ Invalid account number.")
+
+    doc = await db.col.find_one({"account_num": acc_num})
     if not doc:
         return await message.reply("❌ Account not found in database.")
 
-    # Check validity
     valid, me, session = await check_valid_session(doc["tdata"])
     status = "✅ Valid" if valid else "❌ Invalid"
 
     text = (
         f"📂 Account Info\n"
-        f"User ID: {user_id}\n"
+        f"Account #: {acc_num}\n"
         f"Name: {doc['name']}\n"
         f"Phone: {doc['phone']}\n"
-        f"2FA: {doc['twofa']}\n"
-        f"Spam: {doc['spam']}\n"
+      #  f"2FA: {doc['twofa']}\n"
+     #   f"Spam: {doc['spam']}\n"
         f"Status: {status}"
     )
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📄 Session Tele", callback_data=f"tele_{user_id}")],
-        [InlineKeyboardButton("📄 Session Py", callback_data=f"py_{user_id}")],
-        [InlineKeyboardButton("📱 By Phone", callback_data=f"phone_{user_id}")]
+        [InlineKeyboardButton("📄 Session Tele", callback_data=f"tele_{acc_num}")],
+        [InlineKeyboardButton("📄 Session Py", callback_data=f"py_{acc_num}")],
+        [InlineKeyboardButton("📱 By Phone", callback_data=f"phone_{acc_num}")]
     ])
 
     await message.reply(text, reply_markup=keyboard)
 
 
+
 @Client.on_callback_query(filters.regex(r"^(tele|py|phone)_(\d+)$"))
 async def retrieve_options(client, callback_query):
-    action, uid = callback_query.data.split("_")
-    uid = int(uid)
+    action, acc_num = callback_query.data.split("_")
+    acc_num = int(acc_num)
 
-    doc = await db.col.find_one({"_id": uid})
+    doc = await db.col.find_one({"account_num": acc_num})
     if not doc:
         return await callback_query.message.edit("❌ Account not found.")
 
@@ -371,23 +396,25 @@ async def retrieve_options(client, callback_query):
     if action == "tele":
         string = session.save()
         txt = io.StringIO(string)
-        txt.name = f"{uid}_tele_session.txt"
+        txt.name = f"{acc_num}_tele_session.txt"
         await callback_query.message.reply_document(txt, caption="🔑 Telethon Session")
+
     elif action == "py":
-        from pyrogram import Client as PyroClient
         from pyrogram.sessions import StringSession as PyroSession
         pyro_string = PyroSession().save()
         txt = io.StringIO(pyro_string)
-        txt.name = f"{uid}_pyrogram_session.txt"
+        txt.name = f"{acc_num}_pyrogram_session.txt"
         await callback_query.message.reply_document(txt, caption="🔑 Pyrogram Session")
+
     elif action == "phone":
         phone = doc["phone"]
         await callback_query.message.reply(
             f"📱 Phone number: `{phone}`\n\nClick **Get Code** after sending code to this number.",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{uid}")]
+                [InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{acc_num}")]
             ])
         )
+
 
 
 
