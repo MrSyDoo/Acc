@@ -249,6 +249,7 @@ async def handle_archive(client, message):
                     "phone": me.phone or "?",
                     "twofa": twofa_state,
                     "spam": getattr(me, "restricted", False),
+                    "account_num": acc_num,
                 }
 
                 # --- (Optional) Save in DB
