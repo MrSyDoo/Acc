@@ -243,7 +243,7 @@ async def handle_archive(client, message):
                 except Exception:
                     # If no exception, that means session already unlocked
                     twofa_state = "2FA: Enabled but unlocked via tdata"
-                acc_num = await db.get_next_account_num()
+                acc_num = idx #await db.get_next_account_num()
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
