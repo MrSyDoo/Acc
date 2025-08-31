@@ -146,11 +146,23 @@ class Database:
 
 db = Database(Config.DB_URL, Config.DB_NAME)
 
-import os, zipfile, rarfile, tempfile, shutil, base64
+                    
+
+
+
+import os
+import zipfile
+import rarfile
+import tempfile
+import shutil
+
 from pyrogram import Client, filters
 from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
+from opentele.td import TDesktop, UseCurrentSession
 
-# --- Your Database class assumed already defined somewhere as db
+# replace with your DB methods
+# from your_db_module import db
+
 
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
@@ -166,18 +178,15 @@ async def handle_archive(client, message):
         os.makedirs(extract_dir, exist_ok=True)
 
         # --- Step 2: Try extracting as ZIP or RAR
-        extracted_ok = False
         try:
             with zipfile.ZipFile(file_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
             await message.reply(f"📦 ZIP extracted to: `{extract_dir}`")
-            extracted_ok = True
         except Exception as e_zip:
             try:
                 with rarfile.RarFile(file_path, "r") as rar_ref:
                     rar_ref.extractall(extract_dir)
                 await message.reply(f"📦 RAR extracted to: `{extract_dir}`")
-                extracted_ok = True
             except Exception as e_rar:
                 return await message.reply(
                     f"❌ Not a valid ZIP or RAR.\n"
@@ -224,16 +233,17 @@ async def handle_archive(client, message):
 
                 me = await tele_client.get_me()
 
-                # --- Detect 2FA state
-                if tdesk.HasPassword:
+                # --- Detect 2FA state (correct way)
+                twofa_state = "Unknown"
+                try:
+                    # Try a fake password → if it asks for password, 2FA is enabled
+                    await tele_client.sign_in(password="wrongpass")
+                    twofa_state = "2FA: Disabled"
+                except SessionPasswordNeededError:
+                    twofa_state = "2FA: Enabled (password required)"
+                except Exception:
+                    # If no exception, that means session already unlocked
                     twofa_state = "2FA: Enabled but unlocked via tdata"
-                else:
-                    try:
-                        await tele_client.sign_in(password="dummy")
-                    except SessionPasswordNeededError:
-                        twofa_state = "2FA: Enabled (password required)"
-                    else:
-                        twofa_state = "2FA: Disabled"
 
                 info = {
                     "name": me.first_name or "?",
@@ -242,14 +252,14 @@ async def handle_archive(client, message):
                     "spam": getattr(me, "restricted", False),
                 }
 
-                # Save in Mongo
-                acc_num = await db.get_next_account_num()
-                with open(file_path, "rb") as f:
-                    archive_bytes = f.read()
-                await db.save_account(me.id, acc_num, info, archive_bytes)
+                # --- (Optional) Save in DB
+                 acc_num = await db.get_next_account_num()
+                 with open(file_path, "rb") as f:
+                     archive_bytes = f.read()
+                 await db.save_account(me.id, acc_num, info, archive_bytes)
 
                 results.append(
-                    f"#{acc_num}\n"
+                    f"#{idx}\n"
                     f"Account Name: {info['name']}\n"
                     f"Phone Number: {info['phone']}\n"
                     f"{info['twofa']}\n"
@@ -277,9 +287,6 @@ async def handle_archive(client, message):
         await message.reply(f"❌ Top-level error: {e}")
     finally:
         shutil.rmtree(tempdir, ignore_errors=True)
-
-
-
 
 
         
