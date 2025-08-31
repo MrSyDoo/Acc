@@ -7,7 +7,7 @@ from config import Config
 from aiohttp import web
 from plugins.web_support import web_server
 from pytz import timezone
-from plugins.start import db
+
 from datetime import datetime
 import asyncio
 import os
