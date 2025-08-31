@@ -146,6 +146,13 @@ class Database:
 
 db = Database(Config.DB_URL, Config.DB_NAME)
 
+import os, zipfile, rarfile, tempfile, shutil, base64
+from pyrogram import Client, filters
+from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
+from TDesktop import TDesktop, UseCurrentSession
+
+# --- Your Database class assumed already defined somewhere as db
+
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
@@ -178,24 +185,11 @@ async def handle_archive(client, message):
                     f"ZIP error: {e_zip}\nRAR error: {e_rar}"
                 )
 
-        # --- Step 3: List contents
-        extracted = []
-        for root, dirs, files in os.walk(extract_dir):
-            for d in dirs:
-                extracted.append(f"[DIR] {os.path.join(root, d)}")
-            for f in files:
-                extracted.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
-        if extracted:
-            await message.reply("📂 Extracted contents:\n" + "\n".join(extracted[:50]))
-        else:
-            await message.reply("⚠️ Archive extracted but appears empty.")
-
-        # --- Step 4: Search for tdata folders (and inner RARs)
+        # --- Step 3: Find tdata folders
         tdata_paths = []
         for root, dirs, files in os.walk(extract_dir):
             if "tdata" in dirs:
                 tdata_paths.append(os.path.join(root, "tdata"))
-
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
@@ -213,27 +207,39 @@ async def handle_archive(client, message):
         if not tdata_paths:
             return await message.reply("⚠️ No `tdata` folders detected in this archive.")
 
-        # --- Step 5: Try login with each tdata
+        # --- Step 4: Try login with each tdata
         for idx, tdata_path in enumerate(tdata_paths, 1):
             await message.reply(f"➡️ Processing tdata #{idx} at `{tdata_path}`")
             try:
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
-                    await message.reply("⚠️ Failed to load this tdata (maybe corrupted?).")
+                    results.append(f"#{idx} ⚠️ Failed to load (corrupted tdata)")
                     continue
 
                 tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
                 await tele_client.connect()
 
                 if not await tele_client.is_user_authorized():
-                    await message.reply("⚠️ Client not authorized (needs login / 2FA).")
+                    results.append(f"#{idx} ⚠️ Not authorized (needs login / 2FA)")
                     continue
 
                 me = await tele_client.get_me()
+
+                # --- Detect 2FA state
+                if tdesk.HasPassword:
+                    twofa_state = "2FA: Enabled but unlocked via tdata"
+                else:
+                    try:
+                        await tele_client.sign_in(password="dummy")
+                    except SessionPasswordNeededError:
+                        twofa_state = "2FA: Enabled (password required)"
+                    else:
+                        twofa_state = "2FA: Disabled"
+
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
-                    "twofa": tdesk.HasPassword,
+                    "twofa": twofa_state,
                     "spam": getattr(me, "restricted", False),
                 }
 
@@ -247,16 +253,16 @@ async def handle_archive(client, message):
                     f"#{acc_num}\n"
                     f"Account Name: {info['name']}\n"
                     f"Phone Number: {info['phone']}\n"
-                    f"2FA enabled: {info['twofa']}\n"
+                    f"{info['twofa']}\n"
                     f"Spam Mute: {info['spam']}\n"
                 )
 
                 await tele_client.disconnect()
 
             except SessionPasswordNeededError:
-                results.append(f"#{idx} ❌ Requires 2FA password.")
+                results.append(f"#{idx} ❌ 2FA: Enabled (password required)")
             except PhoneNumberBannedError:
-                results.append(f"#{idx} 🚫 BANNED number.")
+                results.append(f"#{idx} 🚫 BANNED number")
             except Exception as e:
                 results.append(f"#{idx} ❌ Error: {str(e)}")
 
@@ -272,11 +278,6 @@ async def handle_archive(client, message):
         await message.reply(f"❌ Top-level error: {e}")
     finally:
         shutil.rmtree(tempdir, ignore_errors=True)
-
-
-
-
-    
 
 
 
