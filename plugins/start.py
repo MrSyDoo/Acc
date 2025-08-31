@@ -22,31 +22,8 @@ class temp(object):
     U_NAME = None
     B_NAME = None
     
-class Database:
-    def __init__(self, uri, database_name):
-        self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-        self.db = self._client[database_name]
-        self.col = self.db.used
 
-    async def save_account(self, user_id, info, tdata_bytes):
-        """
-        Save account info + tdata in MongoDB
-        """
-        doc = {
-            "_id": user_id,   # unique by account id
-            "name": info["name"],
-            "phone": info["phone"],
-            "twofa": info["twofa"],
-            "spam": info["spam"],
-            "tdata": base64.b64encode(tdata_bytes).decode("utf-8")
-        }
-        await self.col.update_one({"_id": user_id}, {"$set": doc}, upsert=True)
-
-    async def total_users_count(self):
-        return await self.col.count_documents({})
-
-db = Database(Config.DB_URL, Config.DB_NAME)
-
+    
 async def start_forwarding_process(client: Client, user_id: int, user: dict):
     syd = await client.send_message(user_id, "Sᴛᴀʀɪɴɢ....")
     is_premium = user.get("is_premium", False)
