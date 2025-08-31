@@ -253,10 +253,10 @@ async def handle_archive(client, message):
                 }
 
                 # --- (Optional) Save in DB
-                 acc_num = await db.get_next_account_num()
-                 with open(file_path, "rb") as f:
-                     archive_bytes = f.read()
-                 await db.save_account(me.id, acc_num, info, archive_bytes)
+                acc_num = await db.get_next_account_num()
+                with open(file_path, "rb") as f:
+                    archive_bytes = f.read()
+                await db.save_account(me.id, acc_num, info, archive_bytes)
 
                 results.append(
                     f"#{idx}\n"
