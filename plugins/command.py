@@ -145,8 +145,7 @@ from telethon.errors import SessionPasswordNeededError
 from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
 
-API_ID = 12345          # your api_id
-API_HASH = "your_api_hash"
+
 
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
