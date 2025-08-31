@@ -17,44 +17,6 @@ API_ID = Config.API_ID
 API_HASH = Config.API_HASH
 
 
-async def login_w_tdata(tdata_path):
-    """
-    Convert Telegram Desktop tdata -> Telethon session and return account info.
-    """
-    session = convert_tdata(tdata_path, API_ID, API_HASH)
-    client = TelegramClient(session, API_ID, API_HASH)
-
-    try:
-        await client.start()
-        me = await client.get_me()
-
-        # Collect info
-        name = (me.first_name or "") + " " + (me.last_name or "")
-        phone = me.phone or "Unknown"
-
-        # Check if 2FA is enabled
-        try:
-            hint = await client(functions.account.GetPasswordRequest())
-            twofa = "Y" if hint else "N"
-        except Exception:
-            twofa = "N"
-
-        # Check spam/restricted (simple alive check)
-        try:
-            await client(functions.help.GetAppConfigRequest())
-            spam = "N"
-        except Exception:
-            spam = "Y"
-
-        return me.id, {
-            "name": name.strip(),
-            "phone": phone,
-            "twofa": twofa,
-            "spam": spam
-        }
-
-    finally:
-        await client.disconnect()
 
 
 
