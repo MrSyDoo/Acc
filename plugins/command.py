@@ -158,7 +158,6 @@ import shutil
 
 from pyrogram import Client, filters
 from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
-from opentele.td import TDesktop, UseCurrentSession
 
 # replace with your DB methods
 # from your_db_module import db
