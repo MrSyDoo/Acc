@@ -8,5 +8,6 @@ Pillow
 aiohttp
 pytz
 pyromod
+opentele
 psutil
 rarfile
