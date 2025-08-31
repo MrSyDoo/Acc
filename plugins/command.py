@@ -132,128 +132,7 @@ async def login_with_tdata(tdata_path):
         }
 
 
-# --- Pyrogram handler
-import os
-import asyncio
-import tempfile
-import shutil
-import zipfile
-import rarfile
-import base64
-from pyrogram import Client, filters
-from telethon.errors import SessionPasswordNeededError
-from opentele.td import TDesktop
-from opentele.api import UseCurrentSession
-from telethon.errors.rpcerrorlist import PhoneNumberBannedError
-import motor.motor_asyncio
 
-
-
-
-class Database:
-    def __init__(self, uri, database_name):
-        self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-        self.db = self._client[database_name]
-        self.col = self.db.used
-
-    async def get_next_account_num(self):
-        """Return next unique account number"""
-        last = await self.col.find_one(sort=[("account_num", -1)])
-        if not last:
-            return 1
-        return last["account_num"] + 1
-
-    async def save_account(self, user_id, account_num, info, tdata_bytes):
-        """
-        Save account info + tdata in MongoDB
-        """
-        doc = {
-            "_id": user_id,   # unique by Telegram user_id
-            "account_num": account_num,
-            "name": info.get("name", "?"),
-            "phone": info.get("phone", "?"),
-            "twofa": info.get("twofa", "?"),
-            "spam": info.get("spam", "?"),
-            "tdata": base64.b64encode(tdata_bytes).decode("utf-8"),
-        }
-        await self.col.update_one({"_id": user_id}, {"$set": doc}, upsert=True)
-
-    async def total_users_count(self):
-        return await self.col.count_documents({})
-
-
-db = Database(Config.DB_URL, Config.DB_NAME)
-
-
-@Client.on_message(filters.document)
-async def handle_archive(client, message):
-    temp_dir = tempfile.mkdtemp()
-    zip_path = await message.download(file_name=os.path.join(temp_dir, message.document.file_name))
-    await message.reply("📥 Download complete. Extracting...")
-
-    # Extract contents
-    try:
-        if zip_path.lower().endswith(".zip"):
-            with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                zip_ref.extractall(temp_dir)
-        elif zip_path.lower().endswith(".rar"):
-            with rarfile.RarFile(zip_path, "r") as rar_ref:
-                rar_ref.extractall(temp_dir)
-        else:
-            await message.reply("❌ Unsupported file type. Only zip/rar allowed.")
-            return
-    except Exception as e:
-        await message.reply(f"❌ Failed to extract archive: {e}")
-        return
-
-    # Look for tdata folders
-    tdata_paths = []
-    for root, dirs, files in os.walk(temp_dir):
-        if "tdata" in dirs:
-            tdata_paths.append(os.path.join(root, "tdata"))
-
-    if not tdata_paths:
-        await message.reply("⚠️ No tdata folders detected in archive.")
-        return
-
-    results = []
-    account_num = 1
-    for tdata_path in tdata_paths:
-        try:
-            tdesk = TDesktop(tdata_path)
-            if not tdesk.isLoaded():
-                results.append(f"#{account_num} ⚠️ Failed to load tdata")
-                continue
-
-            tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
-            await tele_client.connect()
-
-            if not await tele_client.is_user_authorized():
-                results.append(f"#{account_num} ❌ Not authorized (needs login/2FA).")
-                continue
-
-            me = await tele_client.get_me()
-            info = {
-                "name": me.first_name or "?",
-                "phone": me.phone or "?",
-                "twofa": tdesk.HasPassword,
-                "spam": getattr(me, "restricted", False),
-            }
-
-            # Save in Mongo
-            tdata_bytes = shutil.make_archive(tdata_path, "zip", tdata_path)
-            with open(tdata_bytes, "rb") as f:
-                archive_bytes = f.read()
-            acc_num = await db.get_next_account_num()
-            await db.save_account(me.id, acc_num, info, archive_bytes)
-
-            results.append(
-                f"#{acc_num}\n"
-                f"Account Name: {info['name']}\n"
-                f"Phone Number: {info['phone']}\n"
-                f"2FA enabled: {info['twofa']}\n"
-                f"Spam Mute: {info['spam']}\n"
-            )
 import os
 import asyncio
 import tempfile
@@ -269,10 +148,6 @@ from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
 import motor.motor_asyncio
 
-API_ID = 12345           # your api_id
-API_HASH = "your_api_hash"
-MONGO_URI = "mongodb://localhost:27017"
-DB_NAME = "tg_accounts"
 
 
 class Database:
@@ -307,8 +182,7 @@ class Database:
         return await self.col.count_documents({})
 
 
-db = Database(MONGO_URI, DB_NAME)
-
+db = Database(Config.DB_URL, Config.DB_NAME)
 
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
