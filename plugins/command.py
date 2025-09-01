@@ -454,17 +454,30 @@ async def retrieve_options(client, callback_query):
             return await callback_query.message.edit("✅ Telethon session sent via DM.")
 
         # PYROGRAM SESSION EXPORT
+        # PYROGRAM
         elif action == "py":
             await callback_query.message.edit("⚙️ Generating Pyrogram session...")
 
-            # ✅ Directly export active session
-            pyro_string = await session.export_session_string()
+            from pyrogram import Client as PyroClient
+
+            # Create a temporary Pyrogram client using the same API_ID/API_HASH
+            pyro_client = PyroClient(
+                name=":memory:",
+                api_id=API_ID,
+                api_hash=API_HASH,
+                no_updates=True
+            )
+
+            await pyro_client.start()
+            string_session = await pyro_client.export_session_string()
+            await pyro_client.stop()
 
             await client.send_message(
                 callback_query.from_user.id,
-                f"🔑 **Pyrogram session** for **{me.first_name}** (`{me.id}`):\n\n`{pyro_string}`"
+                f"🔑 **Pyrogram session** for **{me.first_name}** (`{me.id}`):\n\n`{string_session}`"
             )
             return await callback_query.message.edit("✅ Pyrogram session sent via DM.")
+
 
         # PHONE
         elif action == "phone":
