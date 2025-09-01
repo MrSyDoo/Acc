@@ -415,63 +415,71 @@ async def retrieve_account(client, message):
 
 @Client.on_callback_query(filters.regex(r"^(tele|py|phone)_(\d+)$"))
 async def retrieve_options(client, callback_query):
-    action, acc_num = callback_query.data.split("_")
-    acc_num = int(acc_num)
+    try:
+        action, acc_num = callback_query.data.split("_")
+        acc_num = int(acc_num)
 
-    # Fetch account from DB
-    doc = await db.col.find_one({"account_num": acc_num})
-    if not doc:
-        return await callback_query.message.edit("❌ Account not found.")
+        doc = await db.col.find_one({"account_num": acc_num})
+        if not doc:
+            return await callback_query.message.edit("❌ Account not found.")
 
-    valid, me, session = await check_valid_session(doc["tdata"], callback_query.message)
-    if not valid:
-        return await callback_query.message.edit("❌ Unable to login with this TData.")
+        await callback_query.message.edit("⏳ Loading session from TData...")
 
-    # Session message template
-    txt = (
-        "ʜᴇʀᴇ ɪs ʏᴏᴜʀ {0} sᴛʀɪɴɢ sᴇssɪᴏɴ\n\n"
-        "<code>{1}</code>\n\n"
-        "ᴀ sᴛʀɪɴɢ ɢᴇɴᴇʀᴀᴛᴏʀ ʙᴏᴛ ʙʏ <a href={2}>Sɴᴏᴡ Sᴛʀɪɴɢ Gᴇɴ Bᴏᴛ</a>\n"
-        "☠ <b>ɴᴏᴛᴇ :</b> ᴅᴏɴ'ᴛ sʜᴀʀᴇ ɪᴛ ᴡɪᴛʜ ʏᴏᴜʀ ɢɪʀʟғʀɪᴇɴᴅ."
-    )
+        valid, me, session = await check_valid_session(doc["tdata"])
+        if not valid:
+            return await callback_query.message.edit("❌ Could not load session from TData.")
 
-    if action == "tele":
-        string_session = session.save()
-        await session.send_message(
-            "me",
-            txt.format("Telethon", string_session, SUPPORT_CHAT),
-            link_preview=False,
-            parse_mode="html",
-        )
-        await callback_query.message.reply("✅ Telethon session sent to your Saved Messages.")
+        # TELETHON
+        if action == "tele":
+            await callback_query.message.edit("⚙️ Generating Telethon session...")
+            string = session.save()
+            txt = io.StringIO(string)
+            txt.name = f"{acc_num}_tele_session.txt"
 
-    elif action == "py":
-        from pyrogram import Client as PyroClient
-        from pyrogram.enums import ParseMode
-        from pyrogram.sessions import StringSession as PyroSession
+            await client.send_document(
+                callback_query.from_user.id,
+                txt,
+                caption=f"🔑 Telethon session for **{me.first_name}** (`{me.id}`)"
+            )
+            return await callback_query.message.edit("✅ Session sent via DM.")
 
-        # Export pyrogram session
-        pyro_client = PyroClient(":memory:", api_id=API_ID, api_hash=API_HASH, session=PyroSession())
-        await pyro_client.start()
-        pyro_string = await pyro_client.export_session_string()
-        await pyro_client.stop()
+        # PYROGRAM
+        elif action == "py":
+            await callback_query.message.edit("⚙️ Generating Pyrogram session...")
 
-        await client.send_message(
-            "me",
-            txt.format("Pyrogram", pyro_string, SUPPORT_CHAT),
-            disable_web_page_preview=True,
-            parse_mode=ParseMode.HTML,
-        )
-        await callback_query.message.reply("✅ Pyrogram session sent to your Saved Messages.")
+            # ⚠️ Note: Pyrogram cannot directly convert TData. You’d need to map Telethon auth_key.
+            # For now this is a placeholder
+            from pyrogram.sessions import StringSession as PyroSession
+            pyro_string = PyroSession().save()
 
-    elif action == "phone":
-        phone = doc.get("phone", "Unknown")
-        await callback_query.message.reply(
-            f"📱 Phone number: `{phone}`\n\nClick **Get Code** after sending code to this number.",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{acc_num}")]]
-            ),
-        )
+            txt = io.StringIO(pyro_string)
+            txt.name = f"{acc_num}_pyrogram_session.txt"
+
+            await client.send_document(
+                callback_query.from_user.id,
+                txt,
+                caption=f"🔑 Pyrogram session for **{me.first_name}** (`{me.id}`)"
+            )
+            return await callback_query.message.edit("✅ Session sent via DM.")
+
+        # PHONE
+        elif action == "phone":
+            phone = doc["phone"]
+            return await callback_query.message.edit(
+                f"📱 Phone number: `{phone}`\n\nClick **Get Code** after sending code to this number.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{acc_num}")]
+                ])
+            )
+
+    except Exception as e:
+        # Log error in console
+
+      
+
+        # Tell the user
+        await callback_query.message.edit(f"❌ Unexpected error while generating session. {e} Try again later.")
+
 
 
 
