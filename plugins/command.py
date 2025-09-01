@@ -413,6 +413,12 @@ async def retrieve_account(client, message):
     await message.reply(text, reply_markup=keyboard)
 
 
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+
+
 @Client.on_callback_query(filters.regex(r"^(tele|py|phone)_(\d+)$"))
 async def retrieve_options(client, callback_query):
     try:
@@ -425,35 +431,34 @@ async def retrieve_options(client, callback_query):
 
         await callback_query.message.edit("⏳ Loading session from TData...")
 
-        valid, me, session = await check_valid_session(doc["tdata"], callback_query.message)
+        # ⬇️ This must return (True/False, user info, active client)
+        valid, me, session = await check_valid_session(
+            doc["tdata"], callback_query.message
+        )
         if not valid:
-            return await callback_query.message.edit("❌ Could not load session from TData.")
+            return await callback_query.message.edit(
+                "❌ Could not load session from TData."
+            )
 
-        # TELETHON
+        # TELETHON SESSION EXPORT
         if action == "tele":
             await callback_query.message.edit("⚙️ Generating Telethon session...")
 
-            # ✅ Properly extract the string session
-            string = session.session.save()
+            # use .session.save() or StringSession.save()
+            tele_string = StringSession.save(session.session)
 
             await client.send_message(
                 callback_query.from_user.id,
-                f"🔑 **Telethon session** for **{me.first_name}** (`{me.id}`):\n\n`{string}`"
+                f"🔑 **Telethon session** for **{me.first_name}** (`{me.id}`):\n\n`{tele_string}`"
             )
             return await callback_query.message.edit("✅ Telethon session sent via DM.")
 
-        # PYROGRAM
+        # PYROGRAM SESSION EXPORT
         elif action == "py":
             await callback_query.message.edit("⚙️ Generating Pyrogram session...")
 
-            from pyrogram import Client as PyroClient
-            from pyrogram.types import Message
-            from pyrogram import raw
-            from pyrogram.session import StringSession
-
-            # ⚠️ Direct TData → Pyrogram conversion isn’t native.
-            # But if you have a running Telethon client, you can still generate a placeholder.
-            pyro_string = StringSession().save()
+            # ✅ Directly export active session
+            pyro_string = await session.export_session_string()
 
             await client.send_message(
                 callback_query.from_user.id,
@@ -463,7 +468,7 @@ async def retrieve_options(client, callback_query):
 
         # PHONE
         elif action == "phone":
-            phone = doc["phone"]
+            phone = doc.get("phone", "❌ Not saved")
             return await callback_query.message.edit(
                 f"📱 Phone number: `{phone}`\n\nClick **Get Code** after sending code to this number.",
                 reply_markup=InlineKeyboardMarkup(
@@ -473,7 +478,7 @@ async def retrieve_options(client, callback_query):
 
     except Exception as e:
         await callback_query.message.edit(
-            f"❌ Unexpected error while generating session. {e} Try again later."
+            f"❌ Unexpected error while generating session.\n\n`{e}`"
         )
 
 
