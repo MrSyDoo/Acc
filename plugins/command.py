@@ -425,7 +425,7 @@ async def retrieve_options(client, callback_query):
 
         await callback_query.message.edit("⏳ Loading session from TData...")
 
-        valid, me, session = await check_valid_session(doc["tdata"])
+        valid, me, session = await check_valid_session(doc["tdata"], callback_query.message)
         if not valid:
             return await callback_query.message.edit("❌ Could not load session from TData.")
 
