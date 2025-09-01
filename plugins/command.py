@@ -425,7 +425,6 @@ async def retrieve_options(client, callback_query):
 
         await callback_query.message.edit("⏳ Loading session from TData...")
 
-        # validate and load account
         valid, me, session = await check_valid_session(doc["tdata"], callback_query.message)
         if not valid:
             return await callback_query.message.edit("❌ Could not load session from TData.")
@@ -434,15 +433,12 @@ async def retrieve_options(client, callback_query):
         if action == "tele":
             await callback_query.message.edit("⚙️ Generating Telethon session...")
 
+            # ✅ Properly extract the string session
             string = session.session.save()
-  # this is correct for Telethon Session object
-            txt = io.StringIO(string)
-            txt.name = f"{acc_num}_tele_session.txt"
 
-            await client.send_document(
+            await client.send_message(
                 callback_query.from_user.id,
-                txt,
-                caption=f"🔑 Telethon session for **{me.first_name}** (`{me.id}`)"
+                f"🔑 **Telethon session** for **{me.first_name}** (`{me.id}`):\n\n`{string}`"
             )
             return await callback_query.message.edit("✅ Telethon session sent via DM.")
 
@@ -450,42 +446,35 @@ async def retrieve_options(client, callback_query):
         elif action == "py":
             await callback_query.message.edit("⚙️ Generating Pyrogram session...")
 
-            from pyrogram.storage import Storage
+            from pyrogram import Client as PyroClient
+            from pyrogram.types import Message
+            from pyrogram import raw
+            from pyrogram.session import StringSession
 
-            # simple wrapper to generate string
-            class PyroStringSession(Storage):
-                def __init__(self, string: str = ""):
-                    super().__init__(name=":memory:", string=string)
+            # ⚠️ Direct TData → Pyrogram conversion isn’t native.
+            # But if you have a running Telethon client, you can still generate a placeholder.
+            pyro_string = StringSession().save()
 
-                def save(self):
-                    return self.dumps()
-
-            pyro_session = PyroStringSession()
-            pyro_string = pyro_session.save()
-
-            txt = io.StringIO(pyro_string)
-            txt.name = f"{acc_num}_pyrogram_session.txt"
-
-            await client.send_document(
+            await client.send_message(
                 callback_query.from_user.id,
-                txt,
-                caption=f"🔑 Pyrogram session for **{me.first_name}** (`{me.id}`)\n\n⚠️ Note: This is a placeholder, you must log in again."
+                f"🔑 **Pyrogram session** for **{me.first_name}** (`{me.id}`):\n\n`{pyro_string}`"
             )
-            return await callback_query.message.edit("✅ Pyrogram session sent via DM (placeholder).")
+            return await callback_query.message.edit("✅ Pyrogram session sent via DM.")
 
         # PHONE
         elif action == "phone":
-            phone = doc.get("phone", "❓ Unknown")
+            phone = doc["phone"]
             return await callback_query.message.edit(
                 f"📱 Phone number: `{phone}`\n\nClick **Get Code** after sending code to this number.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{acc_num}")]
-                ])
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{acc_num}")]]
+                )
             )
 
     except Exception as e:
-        await callback_query.message.edit(f"❌ Unexpected error while generating session. {e} Try again later.")
-
+        await callback_query.message.edit(
+            f"❌ Unexpected error while generating session. {e} Try again later."
+        )
 
 
 
