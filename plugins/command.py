@@ -326,10 +326,10 @@ from telethon import TelegramClient
 from opentele.td import TDesktop
 
 
-async def check_valid_session(tdata_b64: str):
+async def check_valid_session(tdata_b64: str, message):
     """
-    Validate tdata (base64) by logging in with Telethon.
-    Returns: (valid: bool, me: User | None, client: TelegramClient | None)
+    Load tdata (base64) and return a connected Telethon client.
+    Returns: (success: bool, me: User | None, client: TelegramClient | None)
     """
     temp_dir = tempfile.mkdtemp()
     tdata_zip = os.path.join(temp_dir, "tdata.zip")
@@ -344,10 +344,9 @@ async def check_valid_session(tdata_b64: str):
         with zipfile.ZipFile(tdata_zip, "r") as z:
             z.extractall(extract_dir)
 
-        # Load tdata with OpenTele
+        # Load TData with OpenTele
         tdesk = TDesktop(extract_dir)
         if not tdesk.isLoaded():
-            print("[check_valid_session] ❌ Invalid TData structure (missing required files)")
             return False, None, None
 
         # Convert TData → Telethon session
@@ -356,21 +355,16 @@ async def check_valid_session(tdata_b64: str):
         client = TelegramClient(telethon_session, API_ID, API_HASH)
         await client.connect()
 
-        # Check authorization
-        if await client.is_user_authorized():
-            me = await client.get_me()
-            print(f"[check_valid_session] ✅ Authorized as {me.first_name} ({me.id})")
-            return True, me, client
-        else:
-            print("[check_valid_session] ⚠️ Session loaded but not authorized")
-            return False, None, None
+        me = await client.get_me()  # query account info immediately
+        return True, me, client
 
     except Exception as e:
-        print(f"[check_valid_session] ❌ Exception: {e}")
+        await message.reply(f"[check_valid_session] Error: {e}")
         return False, None, None
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 
@@ -391,7 +385,7 @@ async def retrieve_account(client, message):
     if not doc:
         return await message.reply("❌ Account not found in database.")
 
-    valid, me, session = await check_valid_session(doc["tdata"])
+    valid, me, session = await check_valid_session(doc["tdata"], message)
     status = "✅ Valid" if valid else "❌ Invalid"
 
     text = (
@@ -423,7 +417,7 @@ async def retrieve_options(client, callback_query):
     if not doc:
         return await callback_query.message.edit("❌ Account not found.")
 
-    valid, me, session = await check_valid_session(doc["tdata"])
+    valid, me, session = await check_valid_session(doc["tdata"], callback_query)
     if not valid:
         return await callback_query.message.edit("❌ Session expired / invalid.")
 
