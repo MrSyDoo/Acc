@@ -308,31 +308,33 @@ from tdata_converter import convert_tdata
 
 async def check_valid_session(tdata_b64: str):
     """
-    Check if a stored tdata (base64) is still valid.
-    Returns: (valid: bool, me: User | None, session: Telethon.Session | None)
+    Validate tdata (base64) by logging in with Telethon.
+    Returns: (valid: bool, me: User | None, client: TelegramClient | None)
     """
     temp_dir = tempfile.mkdtemp()
     tdata_zip = os.path.join(temp_dir, "tdata.zip")
 
     try:
-        # Save zip
+        # Save + extract tdata.zip
         with open(tdata_zip, "wb") as f:
             f.write(base64.b64decode(tdata_b64))
-
-        # Extract
         extract_dir = os.path.join(temp_dir, "tdata")
-        with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
-            zip_ref.extractall(extract_dir)
+        with zipfile.ZipFile(tdata_zip, "r") as z:
+            z.extractall(extract_dir)
 
-        # Convert tdata → Telethon session
-        session = convert_tdata(extract_dir, API_ID, API_HASH)
+        # Convert TData → Telethon Session (OpenTele does this)
+        
+        tdesk = TDesktop(extract_dir)
+        telethon_session = await tdesk.ToTelethon(session=None)
 
-        async with TelegramClient(session, API_ID, API_HASH) as client:
-            if await client.is_user_authorized():
-                me = await client.get_me()
-                return True, me, session
-            else:
-                return False, None, None
+        client = TelegramClient(telethon_session, API_ID, API_HASH)
+        await client.connect()
+
+        if await client.is_user_authorized():
+            me = await client.get_me()
+            return True, me, client
+        else:
+            return False, None, None
 
     except Exception as e:
         print(f"[check_valid_session] Error: {e}")
@@ -340,6 +342,7 @@ async def check_valid_session(tdata_b64: str):
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 
