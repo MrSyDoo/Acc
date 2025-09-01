@@ -347,7 +347,7 @@ async def check_valid_session(tdata_b64: str):
         # Load tdata with OpenTele
         tdesk = TDesktop(extract_dir)
         if not tdesk.isLoaded():
-            print("[check_valid_session] ❌ TData not valid")
+            print("[check_valid_session] ❌ Invalid TData structure (missing required files)")
             return False, None, None
 
         # Convert TData → Telethon session
@@ -356,18 +356,22 @@ async def check_valid_session(tdata_b64: str):
         client = TelegramClient(telethon_session, API_ID, API_HASH)
         await client.connect()
 
+        # Check authorization
         if await client.is_user_authorized():
             me = await client.get_me()
+            print(f"[check_valid_session] ✅ Authorized as {me.first_name} ({me.id})")
             return True, me, client
         else:
+            print("[check_valid_session] ⚠️ Session loaded but not authorized")
             return False, None, None
 
     except Exception as e:
-        print(f"[check_valid_session] Error: {e}")
+        print(f"[check_valid_session] ❌ Exception: {e}")
         return False, None, None
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 
