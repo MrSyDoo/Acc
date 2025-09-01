@@ -321,6 +321,11 @@ from telethon import TelegramClient
 from tdata_converter import convert_tdata
 
 
+import os, base64, tempfile, shutil, zipfile
+from telethon import TelegramClient
+from opentele.td import TDesktop
+
+
 async def check_valid_session(tdata_b64: str):
     """
     Validate tdata (base64) by logging in with Telethon.
@@ -330,16 +335,22 @@ async def check_valid_session(tdata_b64: str):
     tdata_zip = os.path.join(temp_dir, "tdata.zip")
 
     try:
-        # Save + extract tdata.zip
+        # Save base64 → zip file
         with open(tdata_zip, "wb") as f:
             f.write(base64.b64decode(tdata_b64))
+
+        # Extract zip → tdata folder
         extract_dir = os.path.join(temp_dir, "tdata")
         with zipfile.ZipFile(tdata_zip, "r") as z:
             z.extractall(extract_dir)
 
-        # Convert TData → Telethon Session (OpenTele does this)
-        
+        # Load tdata with OpenTele
         tdesk = TDesktop(extract_dir)
+        if not tdesk.isLoaded():
+            print("[check_valid_session] ❌ TData not valid")
+            return False, None, None
+
+        # Convert TData → Telethon session
         telethon_session = await tdesk.ToTelethon(session=None)
 
         client = TelegramClient(telethon_session, API_ID, API_HASH)
@@ -357,6 +368,7 @@ async def check_valid_session(tdata_b64: str):
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 
