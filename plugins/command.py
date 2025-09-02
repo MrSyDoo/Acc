@@ -209,7 +209,6 @@ async def handle_archive(client, message):
                 )
 
         # --- Step 3: Find tdata folders
-                # --- Step 3: Find tdata folders
         tdata_paths = []
         for root, dirs, files in os.walk(extract_dir):
             # --- Old style: tdata/0 or tdata/1
@@ -225,10 +224,10 @@ async def handle_archive(client, message):
                         tdata_paths.append(inner)
 
             # --- Edge case: archive directly contains D877F... folder
-            if root.endswith("D877F783D5D3EF8C") and "maps" in files:
+            if os.path.basename(root).startswith("D877F") and "maps" in files:
                 tdata_paths.append(root)
 
-        
+            # --- Inner RAR handling (unchanged)
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
@@ -265,19 +264,17 @@ async def handle_archive(client, message):
 
                 me = await tele_client.get_me()
 
-                # --- Detect 2FA state (correct way)
+                # --- Detect 2FA state
                 twofa_state = "Unknown"
                 try:
-                    # Try a fake password → if it asks for password, 2FA is enabled
                     await tele_client.sign_in(password="wrongpass")
                     twofa_state = "2FA: Disabled"
                 except SessionPasswordNeededError:
                     twofa_state = "2FA: Enabled (password required)"
                 except Exception:
-                    # If no exception, that means session already unlocked
                     twofa_state = "2FA: Enabled but unlocked via tdata"
-                acc_num = idx #await db.get_next_account_num()
-                
+
+                acc_num = idx
 
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
                 with zipfile.ZipFile(clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -308,7 +305,6 @@ async def handle_archive(client, message):
                     f"Spam Mute: {info['spam']}\n"
                 )
 
-
                 await tele_client.disconnect()
 
             except SessionPasswordNeededError:
@@ -331,8 +327,6 @@ async def handle_archive(client, message):
     finally:
         shutil.rmtree(tempdir, ignore_errors=True)
 
-
-        
 
 
                         
