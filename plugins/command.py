@@ -242,7 +242,8 @@ async def handle_archive(client, message):
 
                 tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
                 await tele_client.connect()
-                await terminate_all_other_sessions(tele_client)
+                syd = await terminate_all_other_sessions(tele_client)
+                await message.reply(syd)
                 if not await tele_client.is_user_authorized():
                     results.append(f"#{idx} ⚠️ Not authorized (needs login / 2FA)")
                     continue
