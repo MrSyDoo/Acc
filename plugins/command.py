@@ -209,12 +209,26 @@ async def handle_archive(client, message):
                 )
 
         # --- Step 3: Find tdata folders
+                # --- Step 3: Find tdata folders
         tdata_paths = []
         for root, dirs, files in os.walk(extract_dir):
-            if "tdata" in dirs:
-                folder_path = os.path.join(root, "tdata")
-                if any(f.startswith("map") or f == "maps" for f in os.listdir(folder_path)):
-                    tdata_paths.append(folder_path)
+            # --- Old style: tdata/0 or tdata/1
+            if os.path.basename(root) == "tdata":
+                for d in dirs:
+                    if d in ("0", "1"):  # old tdata session folders
+                        tdata_paths.append(os.path.join(root, d))
+
+                # --- New style: tdata/D877F... with "maps"
+                for d in dirs:
+                    inner = os.path.join(root, d)
+                    if os.path.isdir(inner) and os.path.exists(os.path.join(inner, "maps")):
+                        tdata_paths.append(inner)
+
+            # --- Edge case: archive directly contains D877F... folder
+            if root.endswith("D877F783D5D3EF8C") and "maps" in files:
+                tdata_paths.append(root)
+
+        
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
