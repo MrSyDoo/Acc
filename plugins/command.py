@@ -215,6 +215,8 @@ async def handle_archive(client, message):
         for root, dirs, files in os.walk(extract_dir):
             if "tdata" in dirs:
                 tdata_paths.append(os.path.join(root, "tdata"))
+                if any(f.startswith("map") or f == "maps" for f in os.listdir(folder_path)):
+                    tdata_paths.append(folder_path)
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
