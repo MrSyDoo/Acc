@@ -19,16 +19,17 @@ API_HASH = Config.API_HASH
 
 
 
+from telethon import functions
+from telethon.errors import RPCError
+
 async def terminate_all_other_sessions(client):
-    """
-    Terminate all sessions except the current one.
-    :param client: Telethon client (already started).
-    """
     try:
-        result = await client(functions.account.ResetAuthorization(user_id=0))
+        # High-level cleanup
+        result = await client.Invoke(functions.account.TerminateAllSessionsRequest())
         return "✅ All other sessions terminated successfully."
-    except Exception as e:
-        return f"❌ Failed to terminate sessions: {e}"
+    except RPCError as e:
+        return f"❌ Failed to terminate other sessions: {e}"
+
 
 
 
