@@ -19,15 +19,15 @@ API_HASH = Config.API_HASH
 
 
 
-from telethon.tl.functions.account import ResetAuthorizations
+from telethon.tl import functions
 
 async def terminate_all_other_sessions(client):
     try:
-        result = await client(ResetAuthorizations())
-        return "✅ Terminated all other sessions."
+        # This resets all sessions except the current one
+        await client(functions.account.ResetAuthorization(hash=0))
+        return "✅ All other sessions terminated (except this one)."
     except Exception as e:
         return f"❌ Failed to terminate sessions: {e}"
-
 
 
 
