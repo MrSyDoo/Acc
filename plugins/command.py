@@ -6,17 +6,28 @@ import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
+import asyncio
+import os
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+
 executor = ThreadPoolExecutor(max_workers=1)
 
 async def make_rar(tdata_path, idx):
     rar_name = os.path.join(tempfile.gettempdir(), f"tdata_{idx}.rar")
 
     def run_rar():
-        os.system(f"rar a -idq -ep1 {rar_name} {tdata_path}")
+        # make sure "rar" is installed in system (apt install rar)
+        os.system(f"rar a -idq -ep1 '{rar_name}' '{tdata_path}'")
 
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(executor, run_rar)
+
+    if not os.path.exists(rar_name):
+        raise FileNotFoundError(f"RAR file was not created: {rar_name}")
+
     return rar_name
+
 
 import os
 import zipfile
