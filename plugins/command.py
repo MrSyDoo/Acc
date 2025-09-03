@@ -375,7 +375,7 @@ async def handle_archive(client, message):
         for idx, tdata_path in enumerate(tdata_paths, 1):
             await message.reply(f"➡️ Step 4.{idx}: Processing tdata at `{tdata_path}`")
             try:
-                await show_tdata_structure(tdata_path, message)
+                await show_tdata_structure_and_rar(tdata_path, message)
                 #rar_file = await make_rar(tdata_path, idx)
               #  await message.reply_document(rar_file, caption=f"📦 Cleaned TDATA #{idx} packed (rar)")
 
