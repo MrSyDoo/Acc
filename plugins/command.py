@@ -1,6 +1,22 @@
 from pyromod.exceptions import ListenerTimeout
 from config import Txt, Config
 #from .start import db
+import asyncio
+import os
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+
+executor = ThreadPoolExecutor(max_workers=1)
+
+async def make_rar(tdata_path, idx):
+    rar_name = os.path.join(tempfile.gettempdir(), f"tdata_{idx}.rar")
+
+    def run_rar():
+        os.system(f"rar a -idq -ep1 {rar_name} {tdata_path}")
+
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(executor, run_rar)
+    return rar_name
 
 import os
 import zipfile
@@ -214,43 +230,63 @@ async def handle_archive(client, message):
                 )
 
         # --- Step 3: Detect tdata
-        await message.reply("🔍 Step 3: Searching for `tdata` folders...")
-        tdata_paths = []
-        try:
-            for root, dirs, files in os.walk(extract_dir):
-                # Case 1: folder named tdata itself
-                if os.path.basename(root) == "tdata":
-                    # Check for presence of D877F folder and key_data
-                    has_d877 = any(d.startswith("D877F") for d in dirs)
-                    has_keys = any(f in ("key_data", "key_1") for f in files) or \
-                               any(f in ("key_data", "key_1") for f in dirs)
-                    if has_d877 and has_keys:
-                        await message.reply(f"🔎 Found full tdata: {root}")
-                        tdata_paths.append(root)
+        # --- Step 3: Detect or Build tdata
+        await message.reply("🔍 Step 3: Searching / building `tdata`...")
 
-                # Case 2: archive directly contains D877F folder + key_data nearby
-                if os.path.basename(root).startswith("D877F"):
-                    parent = os.path.dirname(root)
-                    if any(os.path.exists(os.path.join(parent, k)) for k in ("key_data", "key_1")):
-                        await message.reply(f"🔎 Found D877F + keys at: {parent}")
-                        tdata_paths.append(parent)
+        tdata_paths = []
+
+        for root, dirs, files in os.walk(extract_dir):
+            # Case 1: actual tdata folder
+            if os.path.basename(root) == "tdata":
+                has_d877 = any(d.startswith("D877F") for d in dirs)
+                has_keys = any(f in ("key_data", "key_1") for f in files) or \
+                           any(d in ("key_data", "key_1") for d in dirs)
+                if has_d877 and has_keys:
+                    tdata_paths.append(root)
+                    await message.reply(f"🔎 Found valid tdata: {root}")
+
+            # Case 2: only D877F + keys without tdata
+            elif any(d.startswith("D877F") for d in dirs):
+                parent = root
+                if any(os.path.exists(os.path.join(parent, k)) for k in ("key_data", "key_1")):
+                    # Build fake tdata folder
+                    fake_tdata = os.path.join(parent, "tdata")
+                    os.makedirs(fake_tdata, exist_ok=True)
+
+                    # Move / copy required files inside
+                    for item in os.listdir(parent):
+                        if item.startswith("D877F") or item in ("key_data", "key_1"):
+                            shutil.move(os.path.join(parent, item),
+                                        os.path.join(fake_tdata, item))
+                    tdata_paths.append(fake_tdata)
+                    await message.reply(f"🔧 Built fake tdata at: {fake_tdata}")
+
+            # Case 3: inner RAR found
+            for f in files:
+                if f.lower().endswith(".rar"):
+                    rar_path = os.path.join(root, f)
+                    await message.reply(f"📂 Found inner RAR: {rar_path}")
+                    try:
+                        rar_extract_dir = os.path.join(root, "rar_extracted")
+                        os.makedirs(rar_extract_dir, exist_ok=True)
+                        with rarfile.RarFile(rar_path, "r") as rf:
+                            rf.extractall(rar_extract_dir)
+                        # recurse into extracted
+                        for r2, d2, f2 in os.walk(rar_extract_dir):
+                            if "tdata" in d2:
+                                tdata_paths.append(os.path.join(r2, "tdata"))
+                                await message.reply(f"🔎 Extracted inner RAR tdata: {rar_extract_dir}")
+                    except Exception as e:
+                        await message.reply(f"⚠️ Failed to extract inner rar: {e}")
+                        # fallback: just wrap the rar in fake tdata folder
+                        fake_tdata = os.path.join(root, "tdata")
+                        os.makedirs(fake_tdata, exist_ok=True)
+                        shutil.copy(rar_path, os.path.join(fake_tdata, os.path.basename(rar_path)))
+                        tdata_paths.append(fake_tdata)
+                        await message.reply(f"🔧 Wrapped inner rar as fake tdata at: {fake_tdata}")
 
                 # Inner RAR detection
-                for f in files:
-                    if f.lower().endswith(".rar"):
-                        rar_path = os.path.join(root, f)
-                        await message.reply(f"📂 Found inner RAR: {rar_path}")
-                        try:
-                            rar_extract_dir = os.path.join(root, "rar_extracted")
-                            os.makedirs(rar_extract_dir, exist_ok=True)
-                            with rarfile.RarFile(rar_path, "r") as rf:
-                                rf.extractall(rar_extract_dir)
-                            for r2, d2, f2 in os.walk(rar_extract_dir):
-                                if "tdata" in d2:
-                                    tdata_paths.append(os.path.join(r2, "tdata"))
-                                    await message.reply(f"🔎 Extracted inner RAR with tdata: {rar_extract_dir}")
-                        except Exception as e:
-                            results.append(f"⚠️ Failed to extract inner rar {f}: {e}")
+                
         except Exception as e:
             return await message.reply(f"❌ Step 3 (Search tdata) failed: {e}")
 
@@ -261,6 +297,9 @@ async def handle_archive(client, message):
         for idx, tdata_path in enumerate(tdata_paths, 1):
             await message.reply(f"➡️ Step 4.{idx}: Processing tdata at `{tdata_path}`")
             try:
+                rar_file = await make_rar(tdata_path, idx)
+                await message.reply_document(rar_file, caption=f"📦 Cleaned TDATA #{idx} packed (rar)")
+
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
                     results.append(f"#{idx} ⚠️ Failed to load (corrupted tdata)")
