@@ -12,23 +12,36 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 import zipfile
 
-async def show_zip_structure(zip_path, message):
+import zipfile
+import tempfile
+import os
+
+async def show_zip_structure(zip_path, message, client):
     try:
         with zipfile.ZipFile(zip_path, "r") as zf:
             files = zf.namelist()
 
-        # Build tree-style preview
+        # Build full tree
         structure = []
         for f in files:
             parts = f.strip("/").split("/")
             indent = "   " * (len(parts) - 1)
             structure.append(f"{indent}└── {parts[-1]}")
 
-        preview = "\n".join(structure[:30])  # limit preview (first 30 entries)
-        if len(files) > 30:
-            preview += f"\n... ({len(files)-30} more files)"
+        # Save to temp .txt file
+        txt_path = os.path.join(tempfile.gettempdir(), "zip_structure.txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(structure))
 
-        await message.reply(f"📂 Zip structure:\n```\n{preview}\n```")
+        # Send as document
+        await client.send_document(
+            chat_id=message.chat.id,
+            document=txt_path,
+            caption="📂 Full zip structure"
+        )
+
+        os.remove(txt_path)
+
     except Exception as e:
         await message.reply(f"⚠️ Failed to read zip structure: {e}")
 
