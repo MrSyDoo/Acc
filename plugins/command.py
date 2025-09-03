@@ -10,6 +10,27 @@ import asyncio
 import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+import zipfile
+
+async def show_zip_structure(zip_path, message):
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            files = zf.namelist()
+
+        # Build tree-style preview
+        structure = []
+        for f in files:
+            parts = f.strip("/").split("/")
+            indent = "   " * (len(parts) - 1)
+            structure.append(f"{indent}└── {parts[-1]}")
+
+        preview = "\n".join(structure[:30])  # limit preview (first 30 entries)
+        if len(files) > 30:
+            preview += f"\n... ({len(files)-30} more files)"
+
+        await message.reply(f"📂 Zip structure:\n```\n{preview}\n```")
+    except Exception as e:
+        await message.reply(f"⚠️ Failed to read zip structure: {e}")
 
 executor = ThreadPoolExecutor(max_workers=1)
 
@@ -222,6 +243,8 @@ async def handle_archive(client, message):
 
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
+        await message.reply(f"✅ Step 1.2: File downloaded to {file_path}")
+        await show_zip_structure(file_path, message)
 
         # --- Step 2: Extraction
         await message.reply("📦 Step 2.1: Trying to extract archive...")
