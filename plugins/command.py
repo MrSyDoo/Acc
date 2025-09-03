@@ -17,7 +17,13 @@ import tempfile
 import os
 import os
 
-async def show_tdata_structure(tdata_path, message):
+import os
+import shutil
+import tempfile
+from pyrogram.types import Message
+
+async def show_tdata_structure_and_rar(tdata_path: str, message: Message):
+    # 1️⃣ Build structure preview
     structure = []
     for root, dirs, files in os.walk(tdata_path):
         level = root.replace(tdata_path, "").count(os.sep)
@@ -26,11 +32,27 @@ async def show_tdata_structure(tdata_path, message):
         for f in files:
             structure.append(f"{indent}   └── {f}")
 
-    preview = "\n".join(structure[:50])  # show first 50 lines
+    preview = "\n".join(structure[:50])  # first 50 lines
     if len(structure) > 100:
         preview += f"\n... ({len(structure)-50} more entries)"
 
-    await message.reply(f"📂 TDATA structure at:\n`{tdata_path}`\n```\n{preview}\n```")
+    await message.reply(
+        f"📂 TDATA structure at:\n`{tdata_path}`\n```\n{preview}\n```"
+    )
+
+    # 2️⃣ Pack into .rar
+    tmp_dir = tempfile.mkdtemp()
+    rar_path = os.path.join(tmp_dir, "tdata.rar")
+
+    # safer: use shutil.make_archive -> creates zip, then rename to rar
+    shutil.make_archive(rar_path.replace(".rar", ""), "zip", tdata_path)
+    os.rename(rar_path.replace(".rar", ".zip"), rar_path)  # fake rar extension
+
+    # 3️⃣ Send rar
+    await message.reply_document(rar_path, caption="📦 Your TDATA as RAR")
+
+    # 4️⃣ Cleanup
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 async def show_zip_structure(zip_path, message, client):
     try:
