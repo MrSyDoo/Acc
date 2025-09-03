@@ -5,6 +5,20 @@ import asyncio
 import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from telethon.tl.functions.account import GetPassword
+from telethon.errors import PasswordHashInvalidError
+
+async def check_2fa(client):
+    try:
+        pw = await client(GetPassword())
+        if pw.has_password:   # True if 2FA is enabled
+            return "2FA: Enabled"
+        else:
+            return "2FA: Disabled"
+    except PasswordHashInvalidError:
+        return "2FA: Disabled"
+    except Exception as e:
+        return f"2FA: Unknown ({e})"
 
 import asyncio
 import os
