@@ -287,8 +287,8 @@ async def handle_archive(client, message):
 
                 # Inner RAR detection
                 
-        except Exception as e:
-            return await message.reply(f"❌ Step 3 (Search tdata) failed: {e}")
+      #  except Exception as e:
+   #         return await message.reply(f"❌ Step 3 (Search tdata) failed: {e}")
 
         if not tdata_paths:
             return await message.reply("⚠️ No `tdata` folders detected in this archive.")
