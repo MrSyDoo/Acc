@@ -279,40 +279,34 @@ async def handle_archive(client, message):
       
 
                 # --- Step 3: Detect or Build tdata
+                # --- Step 3: Detect or Build tdata
         await message.reply("🔍 Step 3: Searching / building `tdata`...")
 
         tdata_paths = []
 
         for root, dirs, files in os.walk(extract_dir):
-            # Case 1: actual tdata folder
-            if os.path.basename(root) == "tdata":
-                has_d877 = any(d.startswith("D877F") for d in dirs)
-                has_keys = any(f in ("key_data", "key_1") for f in files) or \
-                           any(d in ("key_data", "key_1") for d in dirs)
-                if has_d877 and has_keys:
-                    tdata_paths.append(root)
-                    await message.reply(f"🔎 Found valid tdata: {root}")
+            # Check for presence of D877F* and key_data/key_1
+            has_d877 = any(d.startswith("D877F") for d in dirs)
+            has_keys = any(f in ("key_data", "key_1") for f in files) or \
+                       any(d in ("key_data", "key_1") for d in dirs)
 
-            # Case 2: random folder containing D877F + key_data
-            elif any(d.startswith("D877F") for d in dirs) and \
-                 any(os.path.exists(os.path.join(root, k)) for k in ("key_data", "key_1")):
+            if has_d877 and has_keys:
+                # Treat this folder as a valid tdata, regardless of name
                 tdata_paths.append(root)
-                await message.reply(f"🔎 Found valid tdata (random folder): {root}")
+                await message.reply(f"🔎 Found valid tdata folder: {root}")
 
-            # Case 3: only D877F + keys without tdata (wrap into fake tdata)
-            elif any(d.startswith("D877F") for d in dirs):
-                parent = root
-                if any(os.path.exists(os.path.join(parent, k)) for k in ("key_data", "key_1")):
-                    fake_tdata = os.path.join(parent, "tdata")
-                    os.makedirs(fake_tdata, exist_ok=True)
-                    for item in os.listdir(parent):
-                        if item.startswith("D877F") or item in ("key_data", "key_1"):
-                            shutil.move(os.path.join(parent, item),
-                                        os.path.join(fake_tdata, item))
-                    tdata_paths.append(fake_tdata)
-                    await message.reply(f"🔧 Built fake tdata at: {fake_tdata}")
+            # Case: only D877F but no key_data — still try to wrap
+            elif has_d877:
+                fake_tdata = os.path.join(root, "tdata")
+                os.makedirs(fake_tdata, exist_ok=True)
+                for item in os.listdir(root):
+                    if item.startswith("D877F") or item in ("key_data", "key_1"):
+                        shutil.move(os.path.join(root, item),
+                                    os.path.join(fake_tdata, item))
+                tdata_paths.append(fake_tdata)
+                await message.reply(f"🔧 Built fake tdata at: {fake_tdata}")
 
-            # Case 4: inner RAR found (unchanged)
+            # Case: inner RARs remain the same
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
@@ -323,9 +317,11 @@ async def handle_archive(client, message):
                         with rarfile.RarFile(rar_path, "r") as rf:
                             rf.extractall(rar_extract_dir)
                         for r2, d2, f2 in os.walk(rar_extract_dir):
-                            if "tdata" in d2:
-                                tdata_paths.append(os.path.join(r2, "tdata"))
-                                await message.reply(f"🔎 Extracted inner RAR tdata: {rar_extract_dir}")
+                            has_d877_rar = any(d.startswith("D877F") for d in d2)
+                            has_keys_rar = any(x in ("key_data", "key_1") for x in f2 + d2)
+                            if has_d877_rar and has_keys_rar:
+                                tdata_paths.append(r2)
+                                await message.reply(f"🔎 Extracted inner RAR tdata: {r2}")
                     except Exception as e:
                         await message.reply(f"⚠️ Failed to extract inner rar: {e}")
                         fake_tdata = os.path.join(root, "tdata")
