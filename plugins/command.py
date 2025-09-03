@@ -15,6 +15,22 @@ import zipfile
 import zipfile
 import tempfile
 import os
+import os
+
+async def show_tdata_structure(tdata_path, message):
+    structure = []
+    for root, dirs, files in os.walk(tdata_path):
+        level = root.replace(tdata_path, "").count(os.sep)
+        indent = "   " * level
+        structure.append(f"{indent}📂 {os.path.basename(root)}/")
+        for f in files:
+            structure.append(f"{indent}   └── {f}")
+
+    preview = "\n".join(structure[:50])  # show first 50 lines
+    if len(structure) > 100:
+        preview += f"\n... ({len(structure)-50} more entries)"
+
+    await message.reply(f"📂 TDATA structure at:\n`{tdata_path}`\n```\n{preview}\n```")
 
 async def show_zip_structure(zip_path, message, client):
     try:
@@ -337,6 +353,7 @@ async def handle_archive(client, message):
         for idx, tdata_path in enumerate(tdata_paths, 1):
             await message.reply(f"➡️ Step 4.{idx}: Processing tdata at `{tdata_path}`")
             try:
+                await show_tdata_structure(tdata_path, message)
                 #rar_file = await make_rar(tdata_path, idx)
               #  await message.reply_document(rar_file, caption=f"📦 Cleaned TDATA #{idx} packed (rar)")
 
