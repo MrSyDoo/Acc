@@ -386,13 +386,13 @@ async def handle_archive(client, message):
             return await message.reply("⚠️ No `tdata` folders detected in this archive.")
 
         # --- Step 4: Process tdata (UNCHANGED)
-        for idx, tdata_path in enumerate(tdata_paths, 1):
+        start_num = await db.get_next_account_num()
+        for offset, tdata_path in enumerate(tdata_paths, 1):
+            idx = start_num + offset
             await message.reply(f"➡️ Step 4.{idx}: Processing tdata at `{tdata_path}`")
             try:
                 await show_tdata_structure_and_rar(tdata_path, message)
-                #rar_file = await make_rar(tdata_path, idx)
-              #  await message.reply_document(rar_file, caption=f"📦 Cleaned TDATA #{idx} packed (rar)")
-
+                
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
                     results.append(f"#{idx} ⚠️ Failed to load (corrupted tdata)")
@@ -432,7 +432,8 @@ async def handle_archive(client, message):
 
                 with open(clean_zip_path, "rb") as f:
                     tdata_bytes = f.read()
-
+                syd = await check_2fa(tele_client)
+                await message.reply(syd)
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
