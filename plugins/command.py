@@ -316,7 +316,7 @@ async def handle_archive(client, message):
                 fake_tdata = os.path.join(root, "tdata")
                 os.makedirs(fake_tdata, exist_ok=True)
                 for item in os.listdir(root):
-                    if item.startswith("D877F") or item in ("key_data", "key_1"):
+                    if item.startswith("D877F") or item in ("key_data", "key_1", "key_datas", "key"):
                         shutil.move(os.path.join(root, item),
                                     os.path.join(fake_tdata, item))
                 tdata_paths.append(fake_tdata)
