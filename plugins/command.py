@@ -257,7 +257,7 @@ async def handle_archive(client, message):
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
         await message.reply(f"✅ Step 1.2: File downloaded to {file_path}")
-        await show_zip_structure(file_path, message)
+        await show_zip_structure(file_path, message, client)
 
         # --- Step 2: Extraction
         await message.reply("📦 Step 2.1: Trying to extract archive...")
@@ -341,8 +341,8 @@ async def handle_archive(client, message):
         for idx, tdata_path in enumerate(tdata_paths, 1):
             await message.reply(f"➡️ Step 4.{idx}: Processing tdata at `{tdata_path}`")
             try:
-                rar_file = await make_rar(tdata_path, idx)
-                await message.reply_document(rar_file, caption=f"📦 Cleaned TDATA #{idx} packed (rar)")
+                #rar_file = await make_rar(tdata_path, idx)
+              #  await message.reply_document(rar_file, caption=f"📦 Cleaned TDATA #{idx} packed (rar)")
 
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
