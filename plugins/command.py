@@ -712,27 +712,32 @@ async def clean_db(client, message):
 from pyrogram import Client, filters
 import os
 import tempfile
-
 @Client.on_message(filters.command("show_db") & filters.private & filters.user(ADMINS))
 async def show_db(client, message):
-    accounts = await db.list_accounts()
-    if not accounts:
-        return await message.reply("❌ No accounts in DB yet.")
+    try:
+        accounts = await db.list_accounts()
+        if not accounts:
+            return await message.reply("❌ No accounts in DB yet.")
 
-    text = "📋 Stored Accounts:\n\n"
-    for acc in accounts:
-        text += f"• Account #: {acc['account_num']}\n"
-        text += f"  Name: {acc['name']}\n"
-        text += f"  Phone: {acc['phone']}\n\n"
-        text += f"  By: {acc['by']}\n\n"
+        text = "📋 Stored Accounts:\n\n"
+        for acc in accounts:
+            text += f"• Account #: {acc.get('account_num', '-')}\n"
+            text += f"  Name: {acc.get('name', '-')}\n"
+            text += f"  Phone: {acc.get('phone', '-')}\n"
+            text += f"  By: {acc.get('by', '-')}\n\n"
 
-    if len(text) < 4000:  # safe limit
-        await message.reply(text)
-    else:
-        with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".txt") as tmp:
-            tmp.write(text)
-            tmp_path = tmp.name
+        if len(text) < 4000:  # safe limit
+            await message.reply(text)
+        else:
+            tmp_path = None
+            try:
+                with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".txt") as tmp:
+                    tmp.write(text)
+                    tmp_path = tmp.name
+                await message.reply_document(tmp_path, caption="📋 Stored Accounts")
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
 
-        await message.reply_document(tmp_path, caption="📋 Stored Accounts")
-        os.remove(tmp_path)
-
+    except Exception as e:
+        await message.reply(f"❌ An error occurred:\n{e}")
