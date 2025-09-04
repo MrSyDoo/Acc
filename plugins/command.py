@@ -197,6 +197,19 @@ class Database:
         self.col = self.db.used
         self.syd = self.db.syd           # grants collection
 
+    async def get_user_account_info(self, user_id: int):
+        """
+        Return detailed account info (from main col) for all accounts granted to user_id
+        """
+        doc = await self.syd.find_one({"_id": user_id})
+        if not doc or "accounts" not in doc:
+            return []
+
+        acc_nums = doc["accounts"]
+
+        cursor = self.col.find({"account_num": {"$in": acc_nums}})
+        return [acc async for acc in cursor]
+
     async def grant_account(self, user_id: int, acc_num: int):
         acc = await self.col.find_one({"account_num": acc_num})
         if not acc:
