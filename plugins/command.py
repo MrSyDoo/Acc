@@ -310,14 +310,15 @@ async def handle_archive(client, message):
         buttons = InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("✅ Secure", callback_data="secure_true"),
-                    InlineKeyboardButton("❌ Not Secure", callback_data="secure_false")
+                    InlineKeyboardButton("Sᴇᴄᴜʀᴇ ✅", callback_data="secure_true"),
+                    InlineKeyboardButton("Dᴏɴᴛ Sᴇᴄᴜʀᴇ ❌", callback_data="secure_false")
                 ]
             ]
         )
         ask_msg = await message.reply(
-            "⚠️ Please select if the archive is secure or not. (5 min timeout ᴡɪʟʟ ʟᴇᴀᴅ ᴛᴏ ɴᴏʀᴍᴀʟ ᴇxᴩᴀɴꜱɪᴏɴ)",
-            reply_markup=buttons
+            "⚠️ Pʟᴇᴀꜱᴇ ꜱᴇʟᴇᴄᴛ ɪꜰ ᴛʜᴇ ᴀʀᴄʜɪᴠᴇ ᴡᴀɴᴛ ᴛᴏ ᴠᴇ ꜱᴇᴄᴜʀᴇᴅ ᴏʀ ɴᴏᴛ. \nIꜰ ꜱᴇᴄᴜʀᴇ ᴀʟʟ ᴛʜᴇ ᴏᴛʜᴇʀ ꜱᴇꜱꜱɪᴏɴꜱ ᴡɪʟʟ ʙᴇ ᴛᴇʀᴍɪɴᴀᴛᴇᴅ ᴀɴᴅ ɪꜰ 2FA ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ɪᴛ ᴡɪʟʟ ʙᴇ ꜱᴇᴛ. \n(5 min timeout ᴡɪʟʟ ʟᴇᴀᴅ ᴛᴏ ɴᴏʀᴍᴀʟ ᴇxᴩᴀɴꜱɪᴏɴ)",
+            reply_markup=buttons,
+            quote=True
         )
 
         try:
