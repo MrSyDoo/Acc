@@ -80,87 +80,7 @@ from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeEx
 
 CODE_RE = re.compile(r"(\d{5,6})")
 
-async def telethon_to_pyrogram(tele_client, api_id: int, api_hash: str, *, wait_seconds: int = 2) -> str:
-    """
-    Create a Pyrogram string session by:
-      1) Using Telethon (already authorized via TData) to read the login code from 777000
-      2) Logging a temporary Pyrogram client in with that code
-      3) Exporting its session string
 
-    Returns: session string
-    Raises: Exception with clear cause (2FA, invalid phone, etc.)
-    """
-    # Ensure Telethon is connected & authorized
-    if not tele_client.is_connected():
-        await tele_client.connect()
-    if not await tele_client.is_user_authorized():
-        raise RuntimeError("Telethon client is not authorized")
-
-    me = await tele_client.get_me()
-    phone = getattr(me, "phone", None)
-    if not phone:
-        raise RuntimeError("This account has no public phone number available to use for Pyrogram login")
-
-    # Start a minimal Pyrogram client (in-memory session)
-    app = PyroClient(
-        name=":memory:",
-        api_id=api_id,
-        api_hash=api_hash,
-        no_updates=True,
-        in_memory=True
-    )
-    await app.connect()
-
-    try:
-        # Ask Telegram for a login code (to this same phone)
-        sent = await app.send_code(phone)
-
-        # Give Telegram a moment to deliver the code, then read it from 777000 via Telethon
-        await asyncio.sleep(wait_seconds)
-        msgs = await tele_client.get_messages(777000, limit=5)
-        if not msgs:
-            raise RuntimeError("Could not read any messages from 777000 (no login code delivered)")
-
-        code = None
-        for m in msgs:
-            if not m.message:
-                continue
-            match = CODE_RE.search(m.message)
-            if match:
-                code = match.group(1)
-                break
-
-        if not code:
-            raise RuntimeError("Could not parse a login code from the latest 777000 message")
-
-        # Complete Pyrogram sign-in using the code
-        await app.sign_in(
-            phone_number=phone,
-            phone_code_hash=sent.phone_code_hash,
-            phone_code=code
-        )
-
-        # If the account has 2FA enabled, Pyrogram will demand a password here
-        # We can’t supply it from TData; fail with a clear message.
-        if not await app.get_me():
-            raise RuntimeError("Pyrogram sign-in did not complete")
-
-        # Export Pyrogram session string
-        s = await app.export_session_string()
-        return s
-
-    except SessionPasswordNeeded:
-        raise RuntimeError("2FA is enabled: Pyrogram requires the password to complete login")
-    except PhoneCodeInvalid:
-        raise RuntimeError("Telegram code from 777000 was invalid")
-    except PhoneCodeExpired:
-        raise RuntimeError("Telegram code from 777000 expired")
-    except PhoneNumberInvalid:
-        raise RuntimeError("Phone number appears invalid for Pyrogram sign-in")
-    except FloodWait as fw:
-        raise RuntimeError(f"Flood wait: retry after {fw.value} seconds")
-    finally:
-        await app.disconnect()
 
 async def check_2fa(client):
     try:
@@ -590,7 +510,6 @@ async def retrieve_account(client, message):
 
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📄 Session Tele", callback_data=f"tele_{acc_num}")],
-        [InlineKeyboardButton("📄 Session Py", callback_data=f"py_{acc_num}")],
         [InlineKeyboardButton("📱 By Phone", callback_data=f"phone_{acc_num}")]
     ])
 
@@ -636,24 +555,6 @@ async def retrieve_options(client, callback_query):
                 f"🔑 **Telethon session** for **{me.first_name}** (`{me.id}`):\n\n`{tele_string}`"
             )
             return await callback_query.message.edit("✅ Telethon session sent via DM.")
-
-        # PYROGRAM SESSION EXPORT
-        # PYROGRAM
-        elif action == "py":
-            await callback_query.message.edit("⚙️ Generating Pyrogram session...")
-
-            pyro_string = await telethon_to_pyrogram(session, API_ID, API_HASH)
-            
-            
- #await pyro_client.export_session_string()
-            
-            await client.send_message(
-                callback_query.from_user.id,
-                f"🔑 **Pyrogram session** for **{me.first_name}** (`{me.id}`):\n\n`{string_session}`"
-            )
-            return await callback_query.message.edit("✅ Pyrogram session sent via DM.")
-
-
         # PHONE
         elif action == "phone":
             phone = doc.get("phone", "❌ Not saved")
