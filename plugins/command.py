@@ -421,7 +421,7 @@ async def handle_archive(client, message):
         start_num = await db.get_next_account_num()
         for offset, tdata_path in enumerate(tdata_paths, 1):
             
-            await sy.edit(f"➡️ Sᴛᴇᴘ 4.{offset}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
+            await sy.edit(f"• Sᴛᴇᴘ 4.{offset}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
             try:
                 await asyncio.sleep(10)
                 await show_tdata_structure(tdata_path, message, offset)
