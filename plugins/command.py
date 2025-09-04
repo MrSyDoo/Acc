@@ -169,19 +169,6 @@ async def terminate_all_other_sessions(client):
         return f"❌ Failed to terminate sessions: {e}"
 
 
-async def make_pyrogram_session(tdata_path, api_id, api_hash):
-    # Create Pyrogram client using tdata folder
-    pyro_client = PyroClient(
-        name=tdata_path,   
-        api_id=api_id,
-        api_hash=api_hash,
-        no_updates=True
-    )
-    await pyro_client.start()
-    string_session = await pyro_client.export_session_string()
-    await pyro_client.stop()
-    return string_session
-
 
 class Database:
     def __init__(self, uri, database_name):
