@@ -513,7 +513,7 @@ async def check_valid_session(tdata_b64: str, message):
         if await tele_client.is_user_authorized():
             me = await tele_client.get_me()
             await message.reply(
-                f"✅ Authorized as {me.first_name} (`{me.id}`)\nPhone: {me.phone or 'N/A'}"
+                f"✅ Authorized as {me.first_name} (`{me.id}`)\nPhone: {"+" + me.phone or 'N/A'}"
             )
             return True, me, tele_client
         else:
