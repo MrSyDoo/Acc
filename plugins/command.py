@@ -322,7 +322,7 @@ async def handle_archive(client, message):
         )
 
         try:
-            cb: CallbackQuery = await client.listen(message.from_user.id, timeout=timeout)
+            cb: CallbackQuery = await client.listen(message.from_user.id, timeout=300)
             if cb.data == "secure_true":
                 secure = True
             else:
