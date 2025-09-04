@@ -15,21 +15,11 @@ class Config(object):
     DB_NAME = os.environ.get("DB_NAME", "cluster0")
     DB_URL = os.environ.get("DB_URL", "")  # ⚠️ Required
 
-    FREE_ACCOUNT = os.environ.get("FREE_ACCOUNT", "2")
-    FREE_GROUP = os.environ.get("FREE_GROUP", "4")
-    
     # other configs
     BOT_UPTIME = time.time()
     PICS = os.environ.get("PICS", 'https://envs.sh/s3r.jpg https://envs.sh/s33.jpg').split()
     ADMIN = [int(admin) if id_pattern.search(
         admin) else admin for admin in os.environ.get('ADMIN', '').split()]  # ⚠️ Required
-
-  #  MES_CHANNEL = os.environ.get("MES_CHANNEL", LOG_CHANNEL)  # ⚠️ Required Username without @ [SECRET PUBLIC CHANNEL]
-    #LOG_CHANNEL = os.environ.get("LOG_CHANNEL", "")
-    FORCE_SUB = os.environ.get("FORCE_SUB", "") # ⚠️ Required Username without @
-    FLOOD = int(os.environ.get("FLOOD", '10'))
-    BANNED_USERS = set(int(x) for x in os.environ.get(
-        "BANNED_USERS", "1234567890").split())
 
     # wes response configuration
     WEBHOOK = bool(os.environ.get("WEBHOOK", True))
@@ -45,20 +35,7 @@ class Txt(object):
 ꜱᴛᴀʀᴛ ʏᴏᴜʀ ᴀᴜᴛᴏᴍᴀᴛᴇᴅ ᴛʜɪɴɢꜱ ᴜꜱɪɴɢ /add_account</b>"""
 
 
-    HELP_TXT = """
-<b>Tɪᴇʀ : Fʀᴇᴇ</b>
-<b>• ᴀᴄᴄᴏᴜɴᴛ : 1</b> 
-<b>• ɢʀᴏᴜᴩꜱ : 3</b> 
-<b>• ᴄᴜꜱᴛᴏᴍ ʙɪᴏ ᴄʜᴀɴɢᴇ : ʏᴇꜱ</b> 
-<b>• ᴛɪᴍᴇ ɪɴᴛᴇʀᴠᴀʟ : 2ʜʀꜱ </b> 
-
-<b>Tɪᴇʀ : Pʀᴇᴍɪᴜᴍ</b>
-<b>• ᴀᴄᴄᴏᴜɴᴛ : ᴜɴʟɪᴍɪᴛᴇᴅ</b> 
-<b>• ɢʀᴏᴜᴩꜱ : ᴜɴʟɪᴍɪᴛᴇᴅ</b> 
-<b>• ᴄᴜꜱᴛᴏᴍ ʙɪᴏ ᴄʜᴀɴɢᴇ : ɴᴏ</b> 
-<b>• ᴛɪᴍᴇ ɪɴᴛᴇʀᴠᴀʟ : ᴄᴜꜱᴛᴏᴍ </b>
-"""
-
+    
     
     GUIDE_TXT = """
 ꜱᴇɴᴅ ᴢɪᴩ ᴡɪᴛʜ ꜰᴏʟᴅᴇʀꜱ ᴄᴏɴᴛᴀɪɴɪɴɢ ᴛᴅᴀᴛᴀ, ʀᴀʀ ᴀʟꜱᴏ ꜱᴜᴩᴩᴏʀᴛᴇᴅ.
