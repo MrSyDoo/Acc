@@ -1,75 +1,32 @@
-from pyromod.exceptions import ListenerTimeout
-from config import Txt, Config
-#from .start import db
-import asyncio
-import os
-import tempfile
-from concurrent.futures import ThreadPoolExecutor
-from telethon.tl.functions.account import GetPasswordRequest
-from telethon.errors import PasswordHashInvalidError
-import asyncio
-import os
-import tempfile
-from concurrent.futures import ThreadPoolExecutor
-import zipfile
-import tempfile
-import os
+import os, re, io
 import shutil
-from pyrogram.types import Message
-from pyrogram import Client, filters
-from telethon.sync import TelegramClient
-from telethon.sessions import StringSession
-from telethon import functions
-import io
-import re
-from telethon import TelegramClient
-import os, base64, tempfile, shutil, zipfile
-from telethon import TelegramClient
-from opentele.td import TDesktop
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
-import rarfile
-import traceback
-import asyncio
-import hashlib
-from telethon.sessions import StringSession
-from telethon import TelegramClient, functions
-from pyrogram import Client, filters
-import os
-import asyncio
-import tempfile
-import shutil
-import zipfile
-import rarfile
 import base64
+import zipfile
+import rarfile
+import tempfile, hashlib, asyncio, traceback
+from datetime import datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor
+import motor.motor_asyncio
 from pyrogram import Client, filters
-from telethon.errors import SessionPasswordNeededError
-from telethon.errors.rpcerrorlist import PhoneNumberBannedError
+from pyrogram import Client as PyroClient
+from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.errors import (
+    SessionPasswordNeeded,
+    PhoneCodeInvalid,
+    PhoneCodeExpired,
+    PhoneNumberInvalid,
+    FloodWait
+)
+from telethon import TelegramClient, functions
+from telethon.sessions import StringSession
+from telethon.errors import (
+    SessionPasswordNeededError,
+    PhoneNumberBannedError
+)
 from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
-import motor.motor_asyncio
-from pyrogram import Client as PyroClient
-import re
-import tempfile, zipfile, shutil, os, base64
-from telethon import TelegramClient
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-import tempfile, os, base64, zipfile, shutil, re
-from datetime import datetime, timezone, timedelta
-import os
-import zipfile
-import rarfile
-import tempfile
-import shutil
-from pyrogram import Client, filters
-from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
-from pyrogram.session import Session
-from pyrogram.storage.memory_storage import MemoryStorage
-import re
-import asyncio
-from pyrogram import Client as PyroClient
-from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeExpired, PhoneNumberInvalid, FloodWait
-
-
+from pyromod.exceptions import ListenerTimeout
+from config import Config
 
 
 API_ID = Config.API_ID
