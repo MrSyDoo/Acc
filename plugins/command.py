@@ -308,8 +308,8 @@ async def handle_archive(client, message):
         buttons = InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("Sᴇᴄᴜʀᴇ ✅", callback_data="securetrue"),
-                    InlineKeyboardButton("Dᴏɴᴛ Sᴇᴄᴜʀᴇ ❌", callback_data="securefalse")
+                    InlineKeyboardButton("Sᴇᴄᴜʀᴇ ✅", callback_data="secure_true"),
+                    InlineKeyboardButton("Dᴏɴᴛ Sᴇᴄᴜʀᴇ ❌", callback_data="secure_false")
                 ]
             ]
         )
