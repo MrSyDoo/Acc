@@ -108,6 +108,27 @@ async def my_accounts_cmd(client: Client, message: Message):
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
 
+@Client.on_message(filters.command("verify") & filters.user(ADMINS))
+async def verify_user(client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply("Usage: /verify {user_id}")
+    try:
+        uid = int(message.command[1])
+        await db.add_verified(uid)
+        await message.reply(f"✅ User `{uid}` verified.")
+        await client.send_message(uid, "🎉 You have been verified by admin! You can now use the bot.")
+    except Exception as e:
+        await message.reply(f"Error: {e}")
+
+
+@Client.on_message(filters.command("revoke") & filters.user(ADMINS))
+async def revoke_user(client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply("Usage: /revoke {user_id}")
+    uid = int(message.command[1])
+    await db.revoke_verified(uid)
+    await message.reply(f"❌ User `{uid}` revoked.")
+    await client.send_message(uid, "⚠️ Your verification has been revoked by admin.")
 
     
 
