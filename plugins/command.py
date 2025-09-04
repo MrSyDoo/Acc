@@ -351,7 +351,7 @@ async def handle_archive(client, message):
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
         await sy.edit(f"• Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
-        await show_zip_structure(file_path, message, client)
+    #    await show_zip_structure(file_path, message, client)
 
         await sy.edit("• Sᴛᴇᴘ 2.1: Tʀʏɪɴɢ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴀʀᴄʜɪᴠᴇ...")
         try:
@@ -576,8 +576,8 @@ async def retrieve_account(client, message):
     )
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📄 Session Tele", callback_data=f"tele_{acc_num}")],
-        [InlineKeyboardButton("📱 By Phone", callback_data=f"phone_{acc_num}")]
+        [InlineKeyboardButton("📄 Sᴇꜱꜱɪᴏɴ Tᴇʟᴇ", callback_data=f"tele_{acc_num}")],
+        [InlineKeyboardButton("📱 Bʏ Pʜᴏɴᴇ", callback_data=f"phone_{acc_num}")]
     ])
 
     await message.reply(text, reply_markup=keyboard)
