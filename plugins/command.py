@@ -69,6 +69,54 @@ from pyrogram import Client as PyroClient
 API_ID = Config.API_ID
 API_HASH = Config.API_HASH
 
+from pyrogram.session import Session
+from pyrogram.storage.memory_storage import MemoryStorage
+from pyrogram import Client as PyroClient
+
+async def telethon_to_pyrogram(tele_client, api_id, api_hash):
+    """
+    Convert a logged-in Telethon client into a Pyrogram session string.
+    """
+    # Ensure Telethon client is connected
+    if not tele_client.is_connected():
+        await tele_client.connect()
+    if not await tele_client.is_user_authorized():
+        raise Exception("Telethon client not authorized")
+
+    # Extract Telethon session internals
+    auth_key = tele_client.session.auth_key.key
+    dc_id = tele_client.session.dc_id
+    server_address, port = tele_client.session.server_address, tele_client.session.port
+
+    # Create Pyrogram session manually
+    storage = MemoryStorage(":memory:")
+    session = Session(
+        api_id=api_id,
+        api_hash=api_hash,
+        storage=storage
+    )
+    await session.start()
+    await session.save()
+    
+    # Inject Telethon data
+    session.auth_key = auth_key
+    session.dc_id = dc_id
+    session.server_address = server_address
+    session.port = port
+
+    # Save into Pyrogram string
+    pyro_client = PyroClient(
+        name=":memory:",
+        api_id=api_id,
+        api_hash=api_hash,
+        no_updates=True,
+        session=session
+    )
+    await pyro_client.start()
+    string_session = await pyro_client.export_session_string()
+    await pyro_client.stop()
+
+    return string_session
 
 async def check_2fa(client):
     try:
@@ -552,20 +600,11 @@ async def retrieve_options(client, callback_query):
         elif action == "py":
             await callback_query.message.edit("⚙️ Generating Pyrogram session...")
 
-            from pyrogram import Client as PyroClient
-
-            # Create a temporary Pyrogram client using the same API_ID/API_HASH
-            pyro_client = PyroClient(
-                name=doc["tdata"],
-                api_id=API_ID,
-                api_hash=API_HASH,
-                no_updates=True
-            )
-
-            await pyro_client.start()
-            string_session = await pyro_client.export_session_string()
-            await pyro_client.stop()
-
+            pyro_string = await telethon_to_pyrogram(session, API_ID, API_HASH)
+            
+            
+ #await pyro_client.export_session_string()
+            
             await client.send_message(
                 callback_query.from_user.id,
                 f"🔑 **Pyrogram session** for **{me.first_name}** (`{me.id}`):\n\n`{string_session}`"
