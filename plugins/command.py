@@ -99,7 +99,7 @@ def require_verified(func):
     @wraps(func)
     async def wrapper(client, message: Message, *args, **kwargs):
         user_id = message.from_user.id
-        if await db.is_verified(user_id):
+        if await db.is_verified(user_id) or user_id in ADMINS:
             return await func(client, message, *args, **kwargs)
         else:
             # notify admins
@@ -456,7 +456,12 @@ async def handle_archive(client, message):
 
                 await tele_client.disconnect()
                 await sy.edit(f"✅ Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{sydno}")
-
+                if message.from_user.id not in ADMINS:
+                    await db.syd.update_one(
+                    {"user_id": message.from_user.id},
+                    {"$addToSet": {"accounts": sydno}},
+                    upsert=True
+                    )
             except SessionPasswordNeededError:
                 results.append(f"#{sydno} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
                 await message.reply(f"❌ ᴛᴅᴀᴛᴀ #{sydno}: Nᴇᴇᴅs 2FA ᴘᴀssᴡᴏʀᴅ")
