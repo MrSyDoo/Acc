@@ -148,7 +148,7 @@ async def show_tdata_structure_and_rar(tdata_path: str, message: Message, num):
     shutil.make_archive(rar_path.replace(".rar", ""), "zip", tdata_path)
     os.rename(rar_path.replace(".rar", ".zip"), rar_path)  # fake rar extension
 
-    await message.reply_document(rar_path, caption="📦 {num} TDATA as RAR")
+    await message.reply_document(rar_path, caption=f"📦 {num} TDATA as RAR")
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
 async def show_zip_structure(zip_path, message, client):
