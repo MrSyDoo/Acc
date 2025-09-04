@@ -14,35 +14,19 @@ from concurrent.futures import ThreadPoolExecutor
 import zipfile
 import tempfile
 import os
-import os
-import os
 import shutil
-import tempfile
 from pyrogram.types import Message
-import os
-import zipfile
-import tempfile
-import shutil
 from pyrogram import Client, filters
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon import functions
-import os
 import io
 import re
-import base64
-import shutil
-import zipfile
-import tempfile
 from telethon import TelegramClient
 import os, base64, tempfile, shutil, zipfile
 from telethon import TelegramClient
 from opentele.td import TDesktop
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
-import os
-import tempfile
-import zipfile
-import shutil
 import rarfile
 import traceback
 import asyncio
@@ -78,6 +62,12 @@ import tempfile
 import shutil
 from pyrogram import Client, filters
 from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
+from pyrogram.session import Session
+from pyrogram.storage.memory_storage import MemoryStorage
+import re
+import asyncio
+from pyrogram import Client as PyroClient
+from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeExpired, PhoneNumberInvalid, FloodWait
 
 
 
@@ -85,12 +75,6 @@ from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
 API_ID = Config.API_ID
 API_HASH = Config.API_HASH
 
-from pyrogram.session import Session
-from pyrogram.storage.memory_storage import MemoryStorage
-import re
-import asyncio
-from pyrogram import Client as PyroClient
-from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeExpired, PhoneNumberInvalid, FloodWait
 
 CODE_RE = re.compile(r"(\d{5,6})")
 
@@ -146,12 +130,11 @@ async def show_zip_structure(zip_path, message, client):
             indent = "   " * (len(parts) - 1)
             structure.append(f"{indent}└── {parts[-1]}")
 
-        # Save to temp .txt file
         txt_path = os.path.join(tempfile.gettempdir(), "zip_structure.txt")
         with open(txt_path, "w", encoding="utf-8") as f:
             f.write("\n".join(structure))
 
-        # Send as document
+        
         await client.send_document(
             chat_id=message.chat.id,
             document=txt_path,
@@ -268,7 +251,6 @@ async def handle_archive(client, message):
         tdata_paths = []
 
         for root, dirs, files in os.walk(extract_dir):
-            # Check for presence of D877F* and key_data/key_1
             has_d877 = any(d.startswith("D877F") for d in dirs)
             has_keys = any(f in ("key_data", "key_1") for f in files) or \
                        any(d in ("key_data", "key_1") for d in dirs)
