@@ -187,3 +187,28 @@ async def broadcast_handler(bot: Client, m: Message):
         f"Sᴜᴄᴄᴇꜱꜱ: {success}\n"
         f"Fᴀɪʟᴇᴅ: {failed}"
     )
+
+@Client.on_callback_query(filters.regex("guide"))
+async def guide_callback(client, callback_query):
+    guide_text = (
+        "📖 <b>Hᴏᴡ Tᴏ Uꜱᴇ Tʜᴇ Bᴏᴛ</b>\n\n"
+        "Tʜɪꜱ ʙᴏᴛ ʜᴇʟᴘꜱ ᴍᴀɴᴀɢᴇ ᴀᴄᴄᴏᴜɴᴛꜱ ꜱᴀꜰᴇʟʏ.\n\n"
+        
+        "🔑 <b>Aᴅᴍɪɴ Cᴏᴍᴍᴀɴᴅꜱ</b>\n"
+        "• <code>/verify {user_id}</code> – ✅ Vᴇʀɪꜰʏ ᴀ ᴜꜱᴇʀ ꜱᴏ ᴛʜᴇʏ ᴄᴀɴ ᴀᴄᴄᴇꜱꜱ ʙᴏᴛ ꜰᴇᴀᴛᴜʀᴇꜱ.\n"
+        "• <code>/revoke {user_id}</code> – ⛔ Rᴇᴍᴏᴠᴇ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ꜰʀᴏᴍ ᴀ ᴜꜱᴇʀ.\n"
+        "• <code>/list</code> – 📂 Lɪꜱᴛ ᴀʟʟ ᴜꜱᴇʀꜱ ᴀɴᴅ ᴛʜᴇɪʀ ᴀᴄᴄᴏᴜɴᴛꜱ.\n"
+        "• <code>/give {user_id} {acc_num}</code> – 🎁 Aꜱꜱɪɢɴ ᴀɴ ᴀᴄᴄᴏᴜɴᴛ ɴᴜᴍʙᴇʀ ᴛᴏ ᴀ ᴜꜱᴇʀ.\n"
+        "• <code>/clean_db</code> – 🧹 Cʟᴇᴀʀ ᴛʜᴇ ᴅᴀᴛᴀʙᴀꜱᴇ (ʙᴇ ᴄᴀʀᴇꜰᴜʟ!).\n"
+        "• <code>/show_db</code> – 📋 Sʜᴏᴡ ᴀʟʟ ᴀᴄᴄᴏᴜɴᴛꜱ ꜱᴀᴠᴇᴅ ɪɴ DB.\n"
+        "• <code>/retrieve {acc_num}</code> – 📥 Rᴇᴛʀɪᴇᴠᴇ ꜰᴜʟʟ ᴀᴄᴄᴏᴜɴᴛ ᴅᴀᴛᴀ.\n\n"
+        
+        "👤 <b>Uꜱᴇʀ Cᴏᴍᴍᴀɴᴅꜱ</b>\n"
+        "• <code>/myaccounts</code> – 🗂 Sᴇᴇ ᴀʟʟ ᴀᴄᴄᴏᴜɴᴛꜱ ʏᴏᴜ ᴏᴡɴ.\n\n"
+        
+        "⚠️ Oɴʟʏ ᴠᴇʀɪꜰɪᴇᴅ ᴜꜱᴇʀꜱ ᴏʀ ᴀᴅᴍɪɴꜱ ᴄᴀɴ ᴀᴄᴄᴇꜱꜱ ꜰᴇᴀᴛᴜʀᴇꜱ."
+    )
+    await callback_query.message.edit_text(
+        guide_text,
+        disable_web_page_preview=True
+    )
