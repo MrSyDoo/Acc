@@ -109,7 +109,6 @@ async def show_rar(tdata_path: str, message: Message, num):
     shutil.rmtree(tmp_dir, ignore_errors=True)
     
 async def show_tdata_structure(tdata_path: str, message: Message, num):
-    # 1️⃣ Build structure preview
     structure = []
     for root, dirs, files in os.walk(tdata_path):
         level = root.replace(tdata_path, "").count(os.sep)
@@ -193,12 +192,10 @@ class Database:
         await self.users.delete_one({"_id": user_id})
 
     async def is_verified(self, user_id: int):
-        """Check if user is verified by admin or already has account access"""
-        # already owns an account
         has_account = await self.syd.find_one({"user_id": user_id})
         if has_account:
             return True
-        # explicitly verified
+       
         verified = await self.verified.find_one({"_id": user_id})
         return bool(verified)
 
@@ -209,9 +206,6 @@ class Database:
         await self.verified.delete_one({"_id": user_id})
 
     async def get_user_account_info(self, user_id: int):
-        """
-        Return detailed account info (from main col) for all accounts granted to user_id
-        """
         doc = await self.syd.find_one({"_id": user_id})
         if not doc or "accounts" not in doc:
             return []
@@ -226,7 +220,6 @@ class Database:
         if not acc:
             return False, f"❌ Account #{acc_num} does not exist."
 
-        # Upsert into syd
         await self.syd.update_one(
             {"_id": user_id},
             {"$addToSet": {"accounts": acc_num}},  # prevent duplicate entries
@@ -247,16 +240,10 @@ class Database:
         return last["account_num"] + 1
 
     async def save_account(self, user_id, info, tdata_bytes):
-        """
-        Save account info + tdata in MongoDB.
-        Ensures account_num is stable (does not change if re-added).
-        """
-        # Check if user already exists
         existing = await self.col.find_one({"_id": user_id})
         if existing:
             account_num = existing["account_num"]
         else:
-            # Also check by phone number to avoid dupes
             if info.get("phone"):
                 phone_match = await self.col.find_one({"phone": info["phone"]})
                 if phone_match:
