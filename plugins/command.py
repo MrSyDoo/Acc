@@ -584,7 +584,7 @@ async def retrieve_options(client, callback_query):
 
             # Create a temporary Pyrogram client using the same API_ID/API_HASH
             pyro_client = PyroClient(
-                name=tdata_path,
+                name=doc["tdata"],
                 api_id=API_ID,
                 api_hash=API_HASH,
                 no_updates=True
