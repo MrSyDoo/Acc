@@ -136,6 +136,25 @@ class Database:
         self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         self.db = self._client[database_name]
         self.col = self.db.used
+        self.syd = self.db.syd           # grants collection
+
+    async def grant_account(self, user_id: int, acc_num: int):
+        acc = await self.col.find_one({"account_num": acc_num})
+        if not acc:
+            return False, f"❌ Account #{acc_num} does not exist."
+
+        # Upsert into syd
+        await self.syd.update_one(
+            {"_id": user_id},
+            {"$addToSet": {"accounts": acc_num}},  # prevent duplicate entries
+            upsert=True,
+        )
+        return True, f"✅ Granted account #{acc_num} to user {user_id}"
+
+    async def list_user_accounts(self, user_id: int):
+        """List granted accounts for a user"""
+        doc = await self.syd.find_one({"_id": user_id})
+        return doc.get("accounts", []) if doc else []
 
     async def get_next_account_num(self):
         """Return next unique account number"""
