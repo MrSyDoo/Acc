@@ -309,7 +309,7 @@ async def handle_archive(client, message):
             [
                 [
                     InlineKeyboardButton("Sᴇᴄᴜʀᴇ ✅", callback_data="securetrue"),
-                    InlineKeyboardButton("Dᴏɴᴛ Sᴇᴄᴜʀᴇ ❌", callback_data="secure_false")
+                    InlineKeyboardButton("Dᴏɴᴛ Sᴇᴄᴜʀᴇ ❌", callback_data="securefalse")
                 ]
             ]
         )
@@ -329,7 +329,7 @@ async def handle_guide_cb(client, cb):
         secure = False
         message = ask_msg.reply_to_message  # None if not a reply
         if value = "false":
-            await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀe....", show_alert=True)
+            await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
             secure = False
         else:
             await cb.answer("ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
