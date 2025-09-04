@@ -341,7 +341,7 @@ async def check_valid_session(tdata_b64: str, message):
         with open(tdata_zip, "wb") as f:
             f.write(base64.b64decode(tdata_b64))
 
-        extract_dir = os.path.join(tempdir, "tdata")
+        extract_dir = os.path.join(temp_dir, "tdata")
         with zipfile.ZipFile(tdata_zip, "r") as z:
             z.extractall(extract_dir)
 
