@@ -38,7 +38,7 @@ async def start(client, message):
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
-@Client.on_message(filters.command("give") & filters.user([123456789]))  
+@Client.on_message(filters.command("give") & filters.user([1821530401, 1733124290]))  
 # ^ put your own admin IDs here
 async def give_account(client: Client, message: Message):
     try:
@@ -55,7 +55,7 @@ async def give_account(client: Client, message: Message):
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
 
-@Client.on_message(filters.command("list") & filters.user([123456789]))  
+@Client.on_message(filters.command("list") & filters.user([1821530401, 1733124290]))  
 # ^ put your admin IDs here
 async def list_user_accounts_cmd(client: Client, message: Message):
     try:
