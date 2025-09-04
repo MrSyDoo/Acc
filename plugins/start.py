@@ -12,7 +12,7 @@ from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon.tl.functions.users import GetFullUserRequest
 india = pytz.timezone("Asia/Kolkata")
-
+from .commands import db
 sessions = {}
 API_HASH = Config.API_HASH
 API_ID = Config.API_ID
@@ -35,6 +35,25 @@ async def start(client, message):
 
 
 
+from pyrogram import Client, filters
+from pyrogram.types import Message
+
+@Client.on_message(filters.command("give") & filters.user([123456789]))  
+# ^ put your own admin IDs here
+async def give_account(client: Client, message: Message):
+    try:
+        parts = message.text.split()
+        if len(parts) != 3:
+            return await message.reply("⚠️ Usage: /give {user_id} {acc_num}")
+
+        user_id = int(parts[1])
+        acc_num = int(parts[2])
+
+        success, msg = await db.grant_account(user_id, acc_num)
+        await message.reply(msg)
+
+    except Exception as e:
+        await message.reply(f"❌ Error: {e}")
 
 
     
