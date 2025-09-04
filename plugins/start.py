@@ -55,6 +55,59 @@ async def give_account(client: Client, message: Message):
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
 
+@Client.on_message(filters.command("list") & filters.user([123456789]))  
+# ^ put your admin IDs here
+async def list_user_accounts_cmd(client: Client, message: Message):
+    try:
+        parts = message.text.split()
+        if len(parts) != 2:
+            return await message.reply("⚠️ Usage: /list {user_id}")
+
+        user_id = int(parts[1])
+        accounts = await db.get_user_account_info(user_id)
+
+        if not accounts:
+            return await message.reply(f"❌ No accounts found for user {user_id}")
+
+        text_lines = [f"📑 Accounts for user `{user_id}`:\n"]
+        for acc in accounts:
+            text_lines.append(
+                f"🔹 #{acc['account_num']} | "
+                f"{acc.get('name', '?')} | "
+                f"{acc.get('phone', '?')} | "
+                f"2FA: {acc.get('twofa', '?')} | "
+                f"Spam: {acc.get('spam', '?')}"
+            )
+
+        await message.reply("\n".join(text_lines))
+
+    except Exception as e:
+        await message.reply(f"❌ Error: {e}")
+
+@Client.on_message(filters.command("myaccounts"))
+async def my_accounts_cmd(client: Client, message: Message):
+    try:
+        user_id = message.from_user.id
+        accounts = await db.get_user_account_info(user_id)
+
+        if not accounts:
+            return await message.reply("⚠️ You don’t own any accounts yet.")
+
+        text_lines = ["📑 Your accounts:\n"]
+        for acc in accounts:
+            text_lines.append(
+                f"🔹 #{acc['account_num']} | "
+                f"{acc.get('name', '?')} | "
+                f"{acc.get('phone', '?')} | "
+                f"2FA: {acc.get('twofa', '?')} | "
+                f"Spam: {acc.get('spam', '?')}"
+            )
+
+        await message.reply("\n".join(text_lines))
+
+    except Exception as e:
+        await message.reply(f"❌ Error: {e}")
+
 
     
 
