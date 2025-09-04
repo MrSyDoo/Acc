@@ -80,7 +80,7 @@ from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeEx
 
 CODE_RE = re.compile(r"(\d{5,6})")
 
-async def make_pyrogram_string_from_telethon(tele_client, api_id: int, api_hash: str, *, wait_seconds: int = 2) -> str:
+async def telethon_to_pyrogram(tele_client, api_id: int, api_hash: str, *, wait_seconds: int = 2) -> str:
     """
     Create a Pyrogram string session by:
       1) Using Telethon (already authorized via TData) to read the login code from 777000
