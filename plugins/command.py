@@ -21,7 +21,8 @@ from telethon import TelegramClient, functions
 from telethon.sessions import StringSession
 from telethon.errors import (
     SessionPasswordNeededError,
-    PhoneNumberBannedError
+    PhoneNumberBannedError,
+    PasswordHashInvalidError
 )
 from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
