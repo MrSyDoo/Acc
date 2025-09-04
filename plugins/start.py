@@ -197,3 +197,23 @@ async def guide_callback(client, callback_query):
         guide_text,
         disable_web_page_preview=True
     )
+
+async def send_msg(user_id, message):
+    try:
+        await message.forward(chat_id=int(user_id))
+        return 200
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+        return send_msg(user_id, message)
+    except InputUserDeactivated:
+        print(f"{user_id} : Dᴇᴀᴄᴛɪᴠᴀᴛᴇᴅ")
+        return 400
+    except UserIsBlocked:
+        print(f"{user_id} : Bʟᴏᴄᴋᴇᴅ Tʜᴇ Bᴏᴛ")
+        return 400
+    except PeerIdInvalid:
+        print(f"{user_id} : Uꜱᴇʀ Iᴅ Iɴᴠᴀʟɪᴅ")
+        return 400
+    except Exception as e:
+        print(f"{user_id} : {e}")
+        return 500
