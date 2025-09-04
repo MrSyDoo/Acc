@@ -7,6 +7,68 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from telethon.tl.functions.account import GetPasswordRequest
 from telethon.errors import PasswordHashInvalidError
+import asyncio
+import os
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+import zipfile
+import tempfile
+import os
+import os
+import os
+import shutil
+import tempfile
+from pyrogram.types import Message
+import os
+import zipfile
+import tempfile
+import shutil
+from pyrogram import Client, filters
+from telethon.sync import TelegramClient
+from telethon.sessions import StringSession
+from telethon import functions
+  # external helper
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
+import os
+import tempfile
+import zipfile
+import shutil
+import rarfile
+import traceback
+import asyncio
+import hashlib
+
+from telethon.sessions import StringSession
+from telethon import TelegramClient, functions
+from pyrogram import Client, filters
+
+
+
+# --- Helper: read tdata key file
+
+# --- Login with tdata & fetch account info
+
+import os
+import asyncio
+import tempfile
+import shutil
+import zipfile
+import rarfile
+import base64
+
+from pyrogram import Client, filters
+from telethon.errors import SessionPasswordNeededError
+from telethon.errors.rpcerrorlist import PhoneNumberBannedError
+from opentele.td import TDesktop
+from opentele.api import UseCurrentSession
+import motor.motor_asyncio
+
+from pyrogram import Client as PyroClient
+
+
+API_ID = Config.API_ID
+API_HASH = Config.API_HASH
+
 
 async def check_2fa(client):
     try:
@@ -20,21 +82,6 @@ async def check_2fa(client):
     except Exception as e:
         return f"2FA: Unknown ({e})"
 
-import asyncio
-import os
-import tempfile
-from concurrent.futures import ThreadPoolExecutor
-import zipfile
-
-import zipfile
-import tempfile
-import os
-import os
-
-import os
-import shutil
-import tempfile
-from pyrogram.types import Message
 
 async def show_tdata_structure_and_rar(tdata_path: str, message: Message):
     # 1️⃣ Build structure preview
@@ -97,42 +144,9 @@ async def show_zip_structure(zip_path, message, client):
     except Exception as e:
         await message.reply(f"⚠️ Failed to read zip structure: {e}")
 
-executor = ThreadPoolExecutor(max_workers=1)
-
-async def make_rar(tdata_path, idx):
-    rar_name = os.path.join(tempfile.gettempdir(), f"tdata_{idx}.rar")
-
-    def run_rar():
-        # make sure "rar" is installed in system (apt install rar)
-        os.system(f"rar a -idq -ep1 '{rar_name}' '{tdata_path}'")
-
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(executor, run_rar)
-
-    if not os.path.exists(rar_name):
-        raise FileNotFoundError(f"RAR file was not created: {rar_name}")
-
-    return rar_name
-
-
-import os
-import zipfile
-import tempfile
-import shutil
-from pyrogram import Client, filters
-from telethon.sync import TelegramClient
-from telethon.sessions import StringSession
-from telethon import functions
-  # external helper
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
-
-
-API_ID = Config.API_ID
-API_HASH = Config.API_HASH
 
 
 
-# option A: import the specific request class
 from telethon.tl.functions.auth import ResetAuthorizationsRequest
 
 async def terminate_all_other_sessions(client):
@@ -142,43 +156,6 @@ async def terminate_all_other_sessions(client):
     except Exception as e:
         return f"❌ Failed to terminate sessions: {e}"
 
-
-
-import os
-import tempfile
-import zipfile
-import shutil
-import rarfile
-import traceback
-import asyncio
-import hashlib
-
-from telethon.sessions import StringSession
-from telethon import TelegramClient, functions
-from pyrogram import Client, filters
-
-
-
-# --- Helper: read tdata key file
-
-# --- Login with tdata & fetch account info
-
-import os
-import asyncio
-import tempfile
-import shutil
-import zipfile
-import rarfile
-import base64
-
-from pyrogram import Client, filters
-from telethon.errors import SessionPasswordNeededError
-from telethon.errors.rpcerrorlist import PhoneNumberBannedError
-from opentele.td import TDesktop
-from opentele.api import UseCurrentSession
-import motor.motor_asyncio
-
-from pyrogram import Client as PyroClient
 
 async def make_pyrogram_session(tdata_path, api_id, api_hash):
     # Create Pyrogram client using tdata folder
