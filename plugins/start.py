@@ -51,7 +51,7 @@ async def start(client, message):
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
-@Client.on_message(filters.command("give") & filters.user([1821530401, 1733124290]))  
+@Client.on_message(filters.command("give") & filters.user(Config.ADMIN))  
 # ^ put your own admin IDs here
 async def give_account(client: Client, message: Message):
     try:
@@ -69,7 +69,7 @@ async def give_account(client: Client, message: Message):
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
 
-@Client.on_message(filters.command("list") & filters.user([1821530401, 1733124290]))  
+@Client.on_message(filters.command("list") & filters.user(Config.ADMIN))  
 # ^ put your admin IDs here
 async def list_user_accounts_cmd(client: Client, message: Message):
     try:
@@ -122,7 +122,7 @@ async def my_accounts_cmd(client: Client, message: Message):
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
 
-@Client.on_message(filters.command("verify") & filters.user(ADMINS))
+@Client.on_message(filters.command("verify") & filters.user(Config.ADMIN))
 async def verify_user(client, message: Message):
     if len(message.command) < 2:
         return await message.reply("Usage: /verify {user_id}")
@@ -135,7 +135,7 @@ async def verify_user(client, message: Message):
         await message.reply(f"Error: {e}")
 
 
-@Client.on_message(filters.command("revoke") & filters.user(ADMINS))
+@Client.on_message(filters.command("revoke") & filters.user(Config.ADMIN))
 async def revoke_user(client, message: Message):
     if len(message.command) < 2:
         return await message.reply("Usage: /revoke {user_id}")
@@ -146,3 +146,44 @@ async def revoke_user(client, message: Message):
 
     
 
+@Client.on_message(filters.command("broadcast") & filters.user(Config.ADMIN) & filters.reply)
+async def broadcast_handler(bot: Client, m: Message):
+    await bot.send_message(Config.LOG_CHANNEL,
+        f"{m.from_user.mention} ({m.from_user.id}) started the broadcast."
+    )
+
+    all_users = await db.get_all_users()
+    broadcast_msg = m.reply_to_message
+    sts_msg = await m.reply_text("Bʀᴏᴀᴅᴄᴀꜱᴛ Sᴛᴀʀᴛᴇᴅ..!")
+
+    done = success = failed = 0
+    start_time = time.time()
+    total_users = await db.total_users_count()
+
+    async for user in all_users:
+        sts = await send_msg(user["_id"], broadcast_msg)
+        if sts == 200:
+            success += 1
+        else:
+            failed += 1
+        if sts == 400:
+            await db.delete_user(user["_id"])
+        done += 1
+
+        if not done % 20:
+            await sts_msg.edit(
+                f"📢 Bʀᴏᴀᴅᴄᴀꜱᴛ Iɴ Pʀᴏɢʀᴇꜱꜱ\n"
+                f"Tᴏᴛᴀʟ: {total_users}\n"
+                f"Cᴏᴍᴘʟᴇᴛᴇᴅ: {done}\n"
+                f"Sᴜᴄᴄᴇꜱꜱ: {success}\n"
+                f"Fᴀɪʟᴇᴅ: {failed}"
+            )
+
+    completed_in = datetime.timedelta(seconds=int(time.time() - start_time))
+    await sts_msg.edit(
+        f"✅ Bʀᴏᴀᴅᴄᴀꜱᴛ Cᴏᴍᴘʟᴇᴛᴇᴅ\n"
+        f"Tɪᴍᴇ: `{completed_in}`\n\n"
+        f"Tᴏᴛᴀʟ: {total_users}\n"
+        f"Sᴜᴄᴄᴇꜱꜱ: {success}\n"
+        f"Fᴀɪʟᴇᴅ: {failed}"
+    )
