@@ -1,3 +1,62 @@
+# Exceptions & Config
+from pyromod.exceptions import ListenerTimeout
+from config import Txt, Config
+
+# Standard Library
+import os
+import re
+import io
+import base64
+import zipfile
+import rarfile
+import shutil
+import tempfile
+import hashlib
+import traceback
+import asyncio
+from datetime import datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor
+
+# Pyrogram
+from pyrogram import Client, filters
+from pyrogram import Client as PyroClient
+from pyrogram.types import (
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery,
+)
+from pyrogram.session import Session
+from pyrogram.storage.memory_storage import MemoryStorage
+from pyrogram.errors import (
+    SessionPasswordNeeded,
+    PhoneCodeInvalid,
+    PhoneCodeExpired,
+    PhoneNumberInvalid,
+    FloodWait,
+)
+
+# Telethon
+from telethon import TelegramClient, functions
+from telethon.sessions import StringSession
+from telethon.errors import (
+    SessionPasswordNeededError,
+    PasswordHashInvalidError,
+)
+from telethon.errors.rpcerrorlist import PhoneNumberBannedError
+from telethon.tl.functions.account import GetPasswordRequest
+
+# OpenTele
+from opentele.td import TDesktop
+from opentele.api import UseCurrentSession
+
+# Database
+import motor.motor_asyncio
+
+
+
+
+
 import os, re, io
 import shutil
 import base64
