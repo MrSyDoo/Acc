@@ -12,7 +12,7 @@ from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon.tl.functions.users import GetFullUserRequest
 india = pytz.timezone("Asia/Kolkata")
-from .command import db
+from .command import db, ADMINS
 sessions = {}
 API_HASH = Config.API_HASH
 API_ID = Config.API_ID
