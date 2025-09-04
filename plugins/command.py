@@ -45,48 +45,18 @@ from telethon.errors import (
 )
 from telethon.errors.rpcerrorlist import PhoneNumberBannedError
 from telethon.tl.functions.account import GetPasswordRequest
-
 # OpenTele
 from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
-
 # Database
 import motor.motor_asyncio
-
-
-
-
-
-import os, re, io
-import shutil
-import base64
-import zipfile
-import rarfile
-import tempfile, hashlib, asyncio, traceback
 from datetime import datetime, timezone, timedelta
-from concurrent.futures import ThreadPoolExecutor
-import motor.motor_asyncio
-from pyrogram import Client, filters
-from pyrogram import Client as PyroClient
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.errors import (
-    SessionPasswordNeeded,
-    PhoneCodeInvalid,
-    PhoneCodeExpired,
-    PhoneNumberInvalid,
-    FloodWait
-)
-from telethon import TelegramClient, functions
-from telethon.sessions import StringSession
 from telethon.errors import (
     SessionPasswordNeededError,
     PhoneNumberBannedError,
     PasswordHashInvalidError
 )
-from opentele.td import TDesktop
-from opentele.api import UseCurrentSession
-from pyromod.exceptions import ListenerTimeout
-from config import Config
 
 
 API_ID = Config.API_ID
@@ -220,7 +190,7 @@ class Database:
         self.col = self.db.used   # main accounts
         self.syd = self.db.syd
         self.users = self.db.users # ownership mapping
-        self.verified = self.db.verified_users  # new collection
+        self.verified = self.db.verified_users
 
 
     async def add_user(self, user_id: int):
@@ -583,10 +553,6 @@ async def retrieve_account(client, message):
     await message.reply(text, reply_markup=keyboard)
 
 
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from telethon import TelegramClient
-from telethon.sessions import StringSession
 
 
 @Client.on_callback_query(filters.regex(r"^(tele|py|phone)_(\d+)$"))
@@ -689,7 +655,6 @@ async def get_code(client, callback_query):
         shutil.rmtree(temp_dir)
 
 
-from pyrogram import Client, filters
 
 @Client.on_message(filters.command("clean_db") & filters.private & filters.user(ADMINS))
 async def clean_db(client, message):
@@ -709,9 +674,7 @@ async def clean_db(client, message):
     await message.reply(f"✅ Database cleaned. Deleted {result.deleted_count} accounts.")
 
 
-from pyrogram import Client, filters
-import os
-import tempfile
+
 @Client.on_message(filters.command("show_db") & filters.private & filters.user(ADMINS))
 async def show_db(client, message):
     try:
