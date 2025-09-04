@@ -414,6 +414,7 @@ async def handle_archive(client, message):
             
             await sy.edit(f"➡️ Sᴛᴇᴘ 4.{offset}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
             try:
+                await asyncio.sleep(10)
                 await show_tdata_structure(tdata_path, message, offset)
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
@@ -526,10 +527,6 @@ async def check_valid_session(tdata_b64: str, message):
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
-
-
-
-
 
 
 
