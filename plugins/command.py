@@ -335,7 +335,7 @@ async def handle_guide_cb(client, cb):
             secure = False
         else:
             await cb.answer("ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
-            secure == True
+            secure = True
         await ask_msg.delete()
 
         sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...", quote=True)
