@@ -457,7 +457,7 @@ async def handle_archive(client, message):
                     "phone": me.phone or "?",
                     "twofa": syd,
                     "spam": getattr(me, "restricted", False),
-                    "by":  f"{first_name}({message.from_user.id})",
+                    "by":  f"{message.from_user.first_name}({message.from_user.id})",
                 }
                 sydno = await db.save_account(me.id, info, tdata_bytes)
                 await show_rar(tdata_path, message, sydno)
