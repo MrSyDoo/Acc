@@ -26,7 +26,8 @@ class temp(object):
 async def start(client, message):
     used = message.from_user
     button = InlineKeyboardMarkup([[
-        InlineKeyboardButton('Gᴜɪᴅᴇ', callback_data='guide')
+        InlineKeyboardButton('Gᴜɪᴅᴇ', callback_data='guide'),
+        InlineKeyboardButton('Vᴇʀɪꜰʏ', url="t.me/vizean")
     ]])
 
     
