@@ -310,7 +310,7 @@ async def handle_archive(client, message):
         buttons = InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("Sᴇᴄᴜʀᴇ ✅", callback_data="secure_true"),
+                    InlineKeyboardButton("Sᴇᴄᴜʀᴇ ✅", callback_data="securetrue"),
                     InlineKeyboardButton("Dᴏɴᴛ Sᴇᴄᴜʀᴇ ❌", callback_data="secure_false")
                 ]
             ]
@@ -328,12 +328,12 @@ async def handle_archive(client, message):
             await ask_msg.edit("⏰ No response received in 5 minutes. Continuing without secure flag.")
         else:
         # cb exists here
-            if cb.data == "secure_true":
+            if not cb.data.startswith("securetrue"):
+                await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀe....", show_alert=True)
+                secure = False
+            else:
                 await cb.answer("ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
                 secure = True
-            else:
-                await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
-                secure = False
             await ask_msg.delete()
 
         sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...", quote=True)
