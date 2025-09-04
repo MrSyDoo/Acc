@@ -537,6 +537,7 @@ async def check_valid_session(tdata_b64: str, message):
 
 @Client.on_message(filters.command("retrieve") & filters.private)
 async def retrieve_account(client, message):
+    user_id = message.from_user.id
     if len(message.command) < 2:
         return await message.reply("⚠️ Usage: `/retrieve account_number`", quote=True)
 
