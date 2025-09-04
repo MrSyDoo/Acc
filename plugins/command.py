@@ -91,10 +91,26 @@ from config import Config
 
 API_ID = Config.API_ID
 API_HASH = Config.API_HASH
-
+ADMINS = [1733124290, 1821530401]
 
 CODE_RE = re.compile(r"(\d{5,6})")
 
+def require_verified(func):
+    @wraps(func)
+    async def wrapper(client, message: Message, *args, **kwargs):
+        user_id = message.from_user.id
+        if await db.is_verified(user_id):
+            return await func(client, message, *args, **kwargs)
+        else:
+            # notify admins
+            for admin_id in ADMINS:
+                await client.send_message(
+                    admin_id,
+                    f"🚨 Unverified user tried to access: {user_id} (@{message.from_user.username})"
+                )
+            return await message.reply("⛔ You are not verified yet. Please wait for admin approval.")
+    return wrapper
+    
 async def check_2fa(client):
     try:
         pw = await client(GetPasswordRequest())
@@ -298,6 +314,7 @@ db = Database(Config.DB_URL, Config.DB_NAME)
 
                     
 @Client.on_message(filters.document)
+@require_verified
 async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
     results = []
