@@ -401,6 +401,7 @@ async def handle_archive(client, message):
             
             await sy.edit(f"➡️ Sᴛᴇᴘ 4.{offset}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
             try:
+                await show_tdata_structure_and_rar(tdata_path, message, offset)
                 
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
