@@ -91,7 +91,7 @@ from config import Config
 
 API_ID = Config.API_ID
 API_HASH = Config.API_HASH
-ADMINS = [1733124290, 1821530401]
+ADMINS = Config.ADMIN
 
 CODE_RE = re.compile(r"(\d{5,6})")
 
@@ -210,8 +210,22 @@ class Database:
         self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         self.db = self._client[database_name]
         self.col = self.db.used   # main accounts
-        self.syd = self.db.syd    # ownership mapping
+        self.syd = self.db.syd
+        self.users = self.db.users # ownership mapping
         self.verified = self.db.verified_users  # new collection
+
+
+    async def add_user(self, user_id: int):
+        await self.users.update_one({ "_id": user_id }, { "$set": {} }, upsert=True)
+
+    async def get_all_users(self):
+        return self.users.find({})
+
+    async def total_users_count(self):
+        return await self.users.count_documents({})
+    
+    async def delete_user(self, user_id: int):
+        await self.users.delete_one({"_id": user_id})
 
     async def is_verified(self, user_id: int):
         """Check if user is verified by admin or already has account access"""
