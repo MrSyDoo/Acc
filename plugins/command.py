@@ -480,14 +480,14 @@ async def handle_archive(client, message):
                     upsert=True
                     )
             except SessionPasswordNeededError:
-                results.append(f"#{sydno} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
-                await message.reply(f"❌ ᴛᴅᴀᴛᴀ #{sydno}: Nᴇᴇᴅs 2FA ᴘᴀssᴡᴏʀᴅ")
+                results.append(f"#{offset} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
+                await message.reply(f"❌ ᴛᴅᴀᴛᴀ #{offset}: Nᴇᴇᴅs 2FA ᴘᴀssᴡᴏʀᴅ")
             except PhoneNumberBannedError:
-                results.append(f"#{sydno} 🚫 Bᴀɴɴᴇᴅ ɴᴜᴍʙᴇʀ")
-                await message.reply(f"🚫 ᴛᴅᴀᴛᴀ #{sydno}: Bᴀɴɴᴇᴅ ᴀᴄᴄᴏᴜɴᴛ")
+                results.append(f"#{offset} 🚫 Bᴀɴɴᴇᴅ ɴᴜᴍʙᴇʀ")
+                await message.reply(f"🚫 ᴛᴅᴀᴛᴀ #{offset}: Bᴀɴɴᴇᴅ ᴀᴄᴄᴏᴜɴᴛ")
             except Exception as e:
-                results.append(f"#{sydno} ❌ Eʀʀᴏʀ: {str(e)}")
-                await message.reply(f"❌ Eʀʀᴏʀ ɪɴ Sᴛᴇᴘ 4.{sydno}: {e}")
+                results.append(f"#{offset} ❌ Eʀʀᴏʀ: {str(e)}")
+                await message.reply(f"❌ Eʀʀᴏʀ ɪɴ Sᴛᴇᴘ 4.{offset}: {e}")
 
         report_text = "📑 Fɪɴᴀʟ Rᴇᴘᴏʀᴛ:\n\n" + "\n".join(results)
         report_path = os.path.join(tempdir, "report.txt")
