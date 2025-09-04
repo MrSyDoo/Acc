@@ -532,10 +532,17 @@ async def retrieve_account(client, message):
     except ValueError:
         return await message.reply("❌ Invalid account number.")
 
-    doc = await db.col.find_one({"account_num": acc_num})
-    if not doc:
-        return await message.reply("❌ Account not found in database.")
+    if user_id in ADMINS:
+        doc = await db.col.find_one({"account_num": acc_num})
+    else:
+        # ✅ Non-admins → only allowed if they own this account
+        doc = await db.syd.find_one({"user_id": user_id, "account_num": acc_num})
+        if doc:
+            # load the account details from main collection
+            doc = await db.col.find_one({"account_num": acc_num})
 
+    if not doc:
+        return await message.reply("❌ You don't have access to this account.")
     valid, me, session = await check_valid_session(doc["tdata"], message)
     status = "✅ Valid" if valid else "❌ Invalid"
 
