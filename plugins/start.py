@@ -1,21 +1,11 @@
-import motor.motor_asyncio
+
 from config import Config, Txt
 import random, asyncio
-from collections import defaultdict
 import pytz
-from datetime import datetime, timedelta
-from telethon.tl.functions.account import UpdateProfileRequest
 from pyrogram import Client, filters, enums
-from telethon.tl.functions.channels import GetForumTopicsRequest
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
-from telethon.sync import TelegramClient
-from telethon.sessions import StringSession
-from telethon.tl.functions.users import GetFullUserRequest
-india = pytz.timezone("Asia/Kolkata")
 from .command import db, ADMINS
-sessions = {}
-API_HASH = Config.API_HASH
-API_ID = Config.API_ID
+
 
 class temp(object):
     ME = None
@@ -49,8 +39,6 @@ async def start(client, message):
 
 
 
-from pyrogram import Client, filters
-from pyrogram.types import Message
 
 @Client.on_message(filters.command("give") & filters.user(Config.ADMIN))  
 # ^ put your own admin IDs here
@@ -149,10 +137,6 @@ async def revoke_user(client, message: Message):
 
 @Client.on_message(filters.command("broadcast") & filters.user(Config.ADMIN) & filters.reply)
 async def broadcast_handler(bot: Client, m: Message):
-    await bot.send_message(Config.LOG_CHANNEL,
-        f"{m.from_user.mention} ({m.from_user.id}) started the broadcast."
-    )
-
     all_users = await db.get_all_users()
     broadcast_msg = m.reply_to_message
     sts_msg = await m.reply_text("Bʀᴏᴀᴅᴄᴀꜱᴛ Sᴛᴀʀᴛᴇᴅ..!")
