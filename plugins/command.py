@@ -285,6 +285,34 @@ async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
     results = []
     try:
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("✅ Secure", callback_data="secure_true"),
+                    InlineKeyboardButton("❌ Not Secure", callback_data="secure_false")
+                ]
+            ]
+        )
+        ask_msg = await message.reply(
+            "⚠️ Please select if the archive is secure or not. (5 min timeout ᴡɪʟʟ ʟᴇᴀᴅ ᴛᴏ ɴᴏʀᴍᴀʟ ᴇxᴩᴀɴꜱɪᴏɴ)",
+            reply_markup=buttons
+        )
+
+        def check_secure(_, callback_query):
+            return callback_query.from_user.id == message.from_user.id and callback_query.data in ["secure_true", "secure_false"]
+
+        try:
+            callback = await client.listen_callback_query(check=check_secure, timeout=300)  # 5 min
+            if callback.data == "secure_true":
+                secure = True
+            else:
+                secure = False
+            await callback.answer(f"Choice registered: {'Secure' if secure else 'Not Secure'}")
+            await ask_msg.delete()
+        except asyncio.TimeoutError:
+            secure = False
+            await ask_msg.edit("⏰ No response received in 5 minutes. Continuing without secure flag.")
+        # ---------------
         sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...", quote=True)
         try:
             file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
