@@ -671,7 +671,7 @@ async def get_code(client, callback_query):
 
 from pyrogram import Client, filters
 
-@Client.on_message(filters.command("clean_db") & filters.private)
+@Client.on_message(filters.command("clean_db") & filters.private & filters.user(ADMINS))
 async def clean_db(client, message):
     confirmation_text = (
         "⚠️ This will permanently delete ALL accounts in the database.\n"
@@ -693,7 +693,7 @@ from pyrogram import Client, filters
 import os
 import tempfile
 
-@Client.on_message(filters.command("show_db") & filters.private)
+@Client.on_message(filters.command("show_db") & filters.private & filters.user(ADMINS))
 async def show_db(client, message):
     accounts = await db.list_accounts()
     if not accounts:
