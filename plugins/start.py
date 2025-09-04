@@ -25,14 +25,13 @@ class temp(object):
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message):
     used = message.from_user
-    user = await db.col.find_one({"_id": used.id})
     button=InlineKeyboardMarkup([[
                 InlineKeyboardButton('Gᴜɪᴅᴇ', callback_data='guide')
           ]])
     if Config.PICS:
-        await message.reply_photo(random.choice(Config.PICS), caption=Txt.START_TXT.format(used.mention, temp.U_NAME, temp.B_NAME), reply_markup=button, parse_mode=enums.ParseMode.HTML)
+        await message.reply_photo(random.choice(Config.PICS), caption=Txt.START_TXT.format(used.mention), reply_markup=button, parse_mode=enums.ParseMode.HTML)
     else:
-        await message.reply_text(text=Txt.START_TXT.format(used.mention, temp.U_NAME, temp.B_NAME), reply_markup=button, disable_web_page_preview=True)
+        await message.reply_text(text=Txt.START_TXT.format(used.mention), reply_markup=button, disable_web_page_preview=True)
 
 
 
