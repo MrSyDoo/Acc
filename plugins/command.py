@@ -300,12 +300,10 @@ class Database:
 
 db = Database(Config.DB_URL, Config.DB_NAME)
 
-                    
+  
 @Client.on_message(filters.document)
 @require_verified
 async def handle_archive(client, message):
-    tempdir = tempfile.mkdtemp()
-    results = []
     try:
         buttons = InlineKeyboardMarkup(
             [
@@ -316,25 +314,27 @@ async def handle_archive(client, message):
             ]
         )
         ask_msg = await message.reply(
-            "⚠️ Pʟᴇᴀꜱᴇ ꜱᴇʟᴇᴄᴛ ɪꜰ ᴛʜᴇ ᴀʀᴄʜɪᴠᴇ ᴡᴀɴᴛ ᴛᴏ ᴠᴇ ꜱᴇᴄᴜʀᴇᴅ ᴏʀ ɴᴏᴛ. \nIꜰ ꜱᴇᴄᴜʀᴇ ᴀʟʟ ᴛʜᴇ ᴏᴛʜᴇʀ ꜱᴇꜱꜱɪᴏɴꜱ ᴡɪʟʟ ʙᴇ ᴛᴇʀᴍɪɴᴀᴛᴇᴅ ᴀɴᴅ ɪꜰ 2FA ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ɪᴛ ᴡɪʟʟ ʙᴇ ꜱᴇᴛ. \n(5 min timeout ᴡɪʟʟ ʟᴇᴀᴅ ᴛᴏ ɴᴏʀᴍᴀʟ ᴇxᴩᴀɴꜱɪᴏɴ)",
+            "⚠️ Pʟᴇᴀꜱᴇ ꜱᴇʟᴇᴄᴛ ɪꜰ ᴛʜᴇ ᴀʀᴄʜɪᴠᴇ ᴡᴀɴᴛ ᴛᴏ ᴠᴇ ꜱᴇᴄᴜʀᴇᴅ ᴏʀ ɴᴏᴛ. \nIꜰ ꜱᴇᴄᴜʀᴇ ᴀʟʟ ᴛʜᴇ ᴏᴛʜᴇʀ ꜱᴇꜱꜱɪᴏɴꜱ ᴡɪʟʟ ʙᴇ ᴛᴇʀᴍɪɴᴀᴛᴇᴅ ᴀɴᴅ ɪꜰ 2FA ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ɪᴛ ᴡɪʟʟ ʙᴇ ꜱᴇᴛ.",
             reply_markup=buttons,
             quote=True
         )
-
+        
+@Client.on_callback_query(filters.regex(r"^guide"))
+async def handle_guide_cb(client, cb):
+    tempdir = tempfile.mkdtemp()
+    results = []
+    try:
+        ask_msg = cb.message
+        value = cb.data[len("guide"):]
         secure = False
-        try:
-            cb: CallbackQuery = await client.listen(message.from_user.id, timeout=300)
-        except asyncio.exceptions.TimeoutError:
-            await ask_msg.edit("⏰ No response received in 5 minutes. Continuing without secure flag.")
+        message = ask_msg.reply_to_message  # None if not a reply
+        if value = "false":
+            await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀe....", show_alert=True)
+            secure = False
         else:
-        # cb exists here
-            if not cb.data.startswith("securetrue"):
-                await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀe....", show_alert=True)
-                secure = False
-            else:
-                await cb.answer("ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
-                secure = True
-            await ask_msg.delete()
+            await cb.answer("ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
+            secure = True
+        await ask_msg.delete()
 
         sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...", quote=True)
         try:
