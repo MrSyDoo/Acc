@@ -73,50 +73,94 @@ from pyrogram.session import Session
 from pyrogram.storage.memory_storage import MemoryStorage
 from pyrogram import Client as PyroClient
 
-async def telethon_to_pyrogram(tele_client, api_id, api_hash):
+import re
+import asyncio
+from pyrogram import Client as PyroClient
+from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeExpired, PhoneNumberInvalid, FloodWait
+
+CODE_RE = re.compile(r"(\d{5,6})")
+
+async def make_pyrogram_string_from_telethon(tele_client, api_id: int, api_hash: str, *, wait_seconds: int = 2) -> str:
     """
-    Convert a logged-in Telethon client into a Pyrogram session string.
+    Create a Pyrogram string session by:
+      1) Using Telethon (already authorized via TData) to read the login code from 777000
+      2) Logging a temporary Pyrogram client in with that code
+      3) Exporting its session string
+
+    Returns: session string
+    Raises: Exception with clear cause (2FA, invalid phone, etc.)
     """
-    # Ensure Telethon client is connected
+    # Ensure Telethon is connected & authorized
     if not tele_client.is_connected():
         await tele_client.connect()
     if not await tele_client.is_user_authorized():
-        raise Exception("Telethon client not authorized")
+        raise RuntimeError("Telethon client is not authorized")
 
-    # Extract Telethon session internals
-    auth_key = tele_client.session.auth_key.key
-    dc_id = tele_client.session.dc_id
-    server_address, port = tele_client.session.server_address, tele_client.session.port
+    me = await tele_client.get_me()
+    phone = getattr(me, "phone", None)
+    if not phone:
+        raise RuntimeError("This account has no public phone number available to use for Pyrogram login")
 
-    # Create Pyrogram session manually
-    storage = MemoryStorage(":memory:")
-    session = Session(
-        api_id=api_id,
-        api_hash=api_hash,
-        storage=storage
-    )
-    await session.start()
-    await session.save()
-    
-    # Inject Telethon data
-    session.auth_key = auth_key
-    session.dc_id = dc_id
-    session.server_address = server_address
-    session.port = port
-
-    # Save into Pyrogram string
-    pyro_client = PyroClient(
+    # Start a minimal Pyrogram client (in-memory session)
+    app = PyroClient(
         name=":memory:",
         api_id=api_id,
         api_hash=api_hash,
         no_updates=True,
-        session=session
+        in_memory=True
     )
-    await pyro_client.start()
-    string_session = await pyro_client.export_session_string()
-    await pyro_client.stop()
+    await app.connect()
 
-    return string_session
+    try:
+        # Ask Telegram for a login code (to this same phone)
+        sent = await app.send_code(phone)
+
+        # Give Telegram a moment to deliver the code, then read it from 777000 via Telethon
+        await asyncio.sleep(wait_seconds)
+        msgs = await tele_client.get_messages(777000, limit=5)
+        if not msgs:
+            raise RuntimeError("Could not read any messages from 777000 (no login code delivered)")
+
+        code = None
+        for m in msgs:
+            if not m.message:
+                continue
+            match = CODE_RE.search(m.message)
+            if match:
+                code = match.group(1)
+                break
+
+        if not code:
+            raise RuntimeError("Could not parse a login code from the latest 777000 message")
+
+        # Complete Pyrogram sign-in using the code
+        await app.sign_in(
+            phone_number=phone,
+            phone_code_hash=sent.phone_code_hash,
+            phone_code=code
+        )
+
+        # If the account has 2FA enabled, Pyrogram will demand a password here
+        # We can’t supply it from TData; fail with a clear message.
+        if not await app.get_me():
+            raise RuntimeError("Pyrogram sign-in did not complete")
+
+        # Export Pyrogram session string
+        s = await app.export_session_string()
+        return s
+
+    except SessionPasswordNeeded:
+        raise RuntimeError("2FA is enabled: Pyrogram requires the password to complete login")
+    except PhoneCodeInvalid:
+        raise RuntimeError("Telegram code from 777000 was invalid")
+    except PhoneCodeExpired:
+        raise RuntimeError("Telegram code from 777000 expired")
+    except PhoneNumberInvalid:
+        raise RuntimeError("Phone number appears invalid for Pyrogram sign-in")
+    except FloodWait as fw:
+        raise RuntimeError(f"Flood wait: retry after {fw.value} seconds")
+    finally:
+        await app.disconnect()
 
 async def check_2fa(client):
     try:
