@@ -317,6 +317,7 @@ class Database:
             "phone": info.get("phone", "?"),
             "twofa": info.get("twofa", "?"),
             "spam": info.get("spam", "?"),
+            "by": info.get("by", "?"),
             "tdata": base64.b64encode(tdata_bytes).decode("utf-8"),
         }
         await self.col.update_one({"_id": user_id}, {"$set": doc}, upsert=True)
@@ -456,6 +457,7 @@ async def handle_archive(client, message):
                     "phone": me.phone or "?",
                     "twofa": syd,
                     "spam": getattr(me, "restricted", False),
+                    "by":  f"{first_name}({message.from_user.id})"
                 }
                 sydno = await db.save_account(me.id, info, tdata_bytes)
                 await show_rar(tdata_path, message, sydno)
