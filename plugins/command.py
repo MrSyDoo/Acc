@@ -194,8 +194,25 @@ class Database:
     def __init__(self, uri, database_name):
         self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         self.db = self._client[database_name]
-        self.col = self.db.used
-        self.syd = self.db.syd           # grants collection
+        self.col = self.db.used   # main accounts
+        self.syd = self.db.syd    # ownership mapping
+        self.verified = self.db.verified_users  # new collection
+
+    async def is_verified(self, user_id: int):
+        """Check if user is verified by admin or already has account access"""
+        # already owns an account
+        has_account = await self.syd.find_one({"user_id": user_id})
+        if has_account:
+            return True
+        # explicitly verified
+        verified = await self.verified.find_one({"_id": user_id})
+        return bool(verified)
+
+    async def add_verified(self, user_id: int):
+        await self.verified.update_one({"_id": user_id}, {"$set": {"verified": True}}, upsert=True)
+
+    async def revoke_verified(self, user_id: int):
+        await self.verified.delete_one({"_id": user_id})
 
     async def get_user_account_info(self, user_id: int):
         """
