@@ -321,7 +321,7 @@ async def handle_archive(client, message):
             quote=True
         )
 
-            secure = False
+        secure = False
         try:
             cb: CallbackQuery = await client.listen(message.from_user.id, timeout=300)
         except asyncio.exceptions.TimeoutError:
