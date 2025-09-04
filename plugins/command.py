@@ -321,13 +321,13 @@ async def handle_archive(client, message):
     except:
         pass
         
-@Client.on_callback_query(filters.regex(r"^guide"))
+@Client.on_callback_query(filters.regex(r"^secure"))
 async def handle_guide_cb(client, cb):
     tempdir = tempfile.mkdtemp()
     results = []
     try:
         ask_msg = cb.message
-        value = cb.data[len("guide"):]
+        value = cb.data.split("_")[-1]
         secure = False
         message = ask_msg.reply_to_message  # None if not a reply
         if value = "false":
