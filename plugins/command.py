@@ -318,6 +318,8 @@ async def handle_archive(client, message):
             reply_markup=buttons,
             quote=True
         )
+    except:
+        pass
         
 @Client.on_callback_query(filters.regex(r"^guide"))
 async def handle_guide_cb(client, cb):
