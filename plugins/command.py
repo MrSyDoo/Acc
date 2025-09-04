@@ -324,9 +324,12 @@ async def handle_archive(client, message):
         try:
             cb: CallbackQuery = await client.listen(message.from_user.id, timeout=300)
             if cb.data == "secure_true":
+                await cb.answer("ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
                 secure = True
             else:
+                await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
                 secure = False
+                await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
             await callback.answer(f"Choice registered: {'Secure' if secure else 'Not Secure'}")
             await ask_msg.delete()
         except asyncio.exceptions.TimeoutError:
