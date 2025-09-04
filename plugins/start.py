@@ -51,7 +51,7 @@ async def give_account(client: Client, message: Message):
 
         success, msg = await db.grant_account(user_id, acc_num)
         await message.reply(msg)
-        await client.send_message(user_id, f"ᴀᴅᴍɪɴ ɢᴀᴠᴇ ʏᴏᴜ ᴀɴ ᴀᴄᴄᴏᴜɴᴛ ᴡɪᴛʜ ɪᴅ : {acc_num}\n ᴜꜱᴇ <code>/retrieve {acc_num}</code> ᴛᴏ ʟᴏɢɪɴ ᴛʜᴀᴛ ᴀᴄᴄᴏᴜɴᴛ 🎉.")
+        await client.send_message(user_id, f"ᴀᴅᴍɪɴ ɢᴀᴠᴇ ʏᴏᴜ ᴀɴ ᴀᴄᴄᴏᴜɴᴛ ᴡɪᴛʜ ɪᴅ : {acc_num}\nᴜꜱᴇ <code>/retrieve {acc_num}</code> ᴛᴏ ʟᴏɢɪɴ ᴛʜᴀᴛ ᴀᴄᴄᴏᴜɴᴛ 🎉.")
 
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
@@ -76,7 +76,7 @@ async def list_user_accounts_cmd(client: Client, message: Message):
                 f"🔹 #{acc['account_num']} | "
                 f"{acc.get('name', '?')} | "
                 f"{acc.get('phone', '?')} | "
-                f"2FA: {acc.get('twofa', '?')} | "
+                f"{acc.get('twofa', '?')} | "
                 f"Spam: {acc.get('spam', '?')}"
             )
 
@@ -92,7 +92,7 @@ async def my_accounts_cmd(client: Client, message: Message):
         accounts = await db.get_user_account_info(user_id)
 
         if not accounts:
-            return await message.reply("⚠️ You don’t own any accounts yet.")
+            return await message.reply("⚠️ You don’t own any accounts yet. \nꜱᴇɴᴅ ᴛᴅᴀᴛᴀ ᴏꜰ ᴀᴄᴄᴏᴜɴᴛ ᴏʀ ʀᴇqᴜᴇꜱᴛ ᴏᴡɴᴇʀ.")
 
         text_lines = ["📑 Your accounts:\n"]
         for acc in accounts:
@@ -100,7 +100,7 @@ async def my_accounts_cmd(client: Client, message: Message):
                 f"🔹 #{acc['account_num']} | "
                 f"{acc.get('name', '?')} | "
                 f"{acc.get('phone', '?')} | "
-                f"2FA: {acc.get('twofa', '?')} | "
+                f"{acc.get('twofa', '?')} | "
                 f"Spam: {acc.get('spam', '?')}"
             )
 
