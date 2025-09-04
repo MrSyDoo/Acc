@@ -321,20 +321,21 @@ async def handle_archive(client, message):
             quote=True
         )
 
+            secure = False
         try:
             cb: CallbackQuery = await client.listen(message.from_user.id, timeout=300)
+        except asyncio.exceptions.TimeoutError:
+            await ask_msg.edit("⏰ No response received in 5 minutes. Continuing without secure flag.")
+        else:
+        # cb exists here
             if cb.data == "secure_true":
                 await cb.answer("ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
                 secure = True
             else:
                 await cb.answer("ᴅᴏɴᴛ ꜱᴇᴄᴜʀɪɴɢ....", show_alert=True)
                 secure = False
-            await cb.answer(f"Choice registered: {'Secure' if secure else 'Not Secure'}")
             await ask_msg.delete()
-        except asyncio.exceptions.TimeoutError:
-            secure = False
-            await ask_msg.edit("⏰ No response received in 5 minutes. Continuing without secure flag.")
-        # ---------------
+
         sy = await message.reply("• Sᴛᴇᴘ 1: Dᴏᴡɴʟᴏᴀᴅɪɴɢ ꜰɪʟᴇ...", quote=True)
         try:
             file_path = await message.download(file_name=os.path.join(tempdir, message.document.file_name))
