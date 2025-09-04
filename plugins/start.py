@@ -51,6 +51,7 @@ async def give_account(client: Client, message: Message):
 
         success, msg = await db.grant_account(user_id, acc_num)
         await message.reply(msg)
+        await client.send_message(user_id, f"ᴀᴅᴍɪɴ ɢᴀᴠᴇ ʏᴏᴜ ᴀɴ ᴀᴄᴄᴏᴜɴᴛ ᴡɪᴛʜ ɪᴅ : {acc_num}\n ᴜꜱᴇ <code>/retrieve {acc_num}</code> ᴛᴏ ʟᴏɢɪɴ ᴛʜᴀᴛ ᴀᴄᴄᴏᴜɴᴛ 🎉.")
 
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
