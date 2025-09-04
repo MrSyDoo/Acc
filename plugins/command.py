@@ -328,7 +328,7 @@ class Database:
     
     async def list_accounts(self):
         """Return all accounts"""
-        cursor = self.col.find({}, {"_id": 0, "account_num": 1, "name": 1, "phone": 1})
+        cursor = self.col.find({}, {"_id": 0, "account_num": 1, "name": 1, "phone": 1, "by": 1})
         return [doc async for doc in cursor]
 
 
@@ -724,6 +724,7 @@ async def show_db(client, message):
         text += f"• Account #: {acc['account_num']}\n"
         text += f"  Name: {acc['name']}\n"
         text += f"  Phone: {acc['phone']}\n\n"
+        text += f"  By: {acc['by']}\n\n"
 
     if len(text) < 4000:  # safe limit
         await message.reply(text)
