@@ -102,29 +102,32 @@ async def check_2fa(client):
 
 from telethon.errors import PasswordHashInvalidError
 
-from telethon.tl.functions.account import UpdatePasswordSettingsRequest
 from telethon.tl.functions.account import UpdatePasswordSettingsRequest, GetPasswordRequest
-from telethon.tl.types import PasswordInputSettings
+from telethon.tl.types import account
+from telethon.errors import PasswordHashInvalidError
+
 from telethon.errors import PasswordHashInvalidError
 
 async def add_2fa(client, new_password: str, message):
     try:
-        pw = await client(GetPasswordRequest())
-        if pw.has_password:
-            return False, "Iɢɴᴏʀɪɴɢ 2FA, Sɪɴᴄᴇ ɪᴛ'ꜱ ᴀʟʀᴇᴀᴅʏ ꜱᴇᴛ"
-
-        settings = PasswordInputSettings(
-            new_password=new_password,
-            new_hint="Set via bot",
-            email=None
+        # Try setting 2FA directly (only works if account has no existing 2FA)
+        success = await client.edit_2fa(
+            current_password=None,        # no current password, since we assume 2FA not set
+            new_password=new_password,    # the password to set
+            hint="Set via bot",           # optional hint
+            email=None                    # optional recovery email
         )
 
-        await client(UpdatePasswordSettingsRequest(settings))
-        return True, f"2FA Sᴇᴛ ᴛᴏ : {new_password}"
+        if success:
+            return True, f"2FA Sᴇᴛ ᴛᴏ : {new_password}"
+        else:
+            return False, "❌ Fᴀɪʟᴇᴅ ᴛᴏ sᴇᴛ 2FA (ᴜɴᴋɴᴏᴡɴ ʀᴇᴀsᴏɴ)"
+
     except PasswordHashInvalidError:
-        return False, "ᴇʀʀᴏʀ ɪɴ 2ꜰᴀ ᴀᴅᴅɪɴɢ PasswordHashInvalidError"
+        return False, "❌ Wʀᴏɴɢ ᴄᴜʀʀᴇɴᴛ ᴘᴀssᴡᴏʀᴅ (2FA ᴀʟʀᴇᴀᴅʏ sᴇᴛ)"
     except Exception as e:
-        return False, f"ᴇʀʀᴏʀ ɪɴ 2ꜰᴀ ᴀᴅᴅɪɴɢ {e}"
+        return False, f"❌ Eʀʀᴏʀ ɪɴ 2FA ᴀᴅᴅɪɴɢ: {e}"
+
 
 
 
