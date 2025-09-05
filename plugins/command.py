@@ -485,7 +485,7 @@ async def handle_guide_cb(client, cb):
                         passs = MAINPASS
                     else:
                         passs = USERPASS
-                    sd, mrsyd = await set_or_change_2fa(tele_client, passs, message)
+                    sd, mrsyd = await set_or_change_2fa(tele_client, passs)
                     nsyd = f"{mrsyd} \n" + await terminate_all_other_sessions(tele_client)
                     syd = f"2FA : {passs}"
                 else:
