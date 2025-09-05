@@ -633,6 +633,8 @@ async def retrieve_options(client, callback_query):
         valid, me, session = await check_valid_session(
             doc["tdata"], callback_query.message
         )
+        
+        tele_client = session
         if not valid:
             return await callback_query.message.edit(
                 "❌ Could not load session from TData."
@@ -658,7 +660,6 @@ async def retrieve_options(client, callback_query):
                 )
             )
 
-        tele_client = session
         elif action == "set2fa":
             ask_msg = await callback_query.message.edit(
                 "🔐 Send me the **new 2FA password** (or type `/cancel`)."
