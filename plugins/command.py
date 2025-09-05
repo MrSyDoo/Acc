@@ -62,8 +62,8 @@ from telethon.errors import (
 API_ID = Config.API_ID
 API_HASH = Config.API_HASH
 ADMINS = Config.ADMIN
-USERPASS = "YoWaKeUp"
-MAINPASS = "AnYtHing Huh?"
+USERPASS = Config.USERPASS
+MAINPASS = Config.MAINPASS
 CODE_RE = re.compile(r"(\d{5,6})")
 
 def require_verified(func):
