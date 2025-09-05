@@ -617,8 +617,8 @@ async def retrieve_account(client, message):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📄 Sᴇꜱꜱɪᴏɴ Tᴇʟᴇ", callback_data=f"tele_{acc_num}")],
         [InlineKeyboardButton("📱 Bʏ Pʜᴏɴᴇ", callback_data=f"phone_{acc_num}")],
-        [InlineKeyboardButton("Sᴇᴛ 2FA", callback_data=f"set2fa_{acc_num}")],
-        [InlineKeyboardButton("Rᴇᴍᴏᴠᴇ 2FA", callback_data=f"remove2fa_{acc_num}")]
+        [InlineKeyboardButton("Sᴇᴛ 2FA", callback_data=f"set2fa_{acc_num}"),
+         InlineKeyboardButton("Rᴇᴍᴏᴠᴇ 2FA", callback_data=f"remove2fa_{acc_num}")]
     ])
 
     await message.reply(text, reply_markup=keyboard)
