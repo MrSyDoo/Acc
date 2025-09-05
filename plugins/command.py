@@ -128,7 +128,21 @@ async def add_2fa(client, new_password: str, message):
     except Exception as e:
         return False, f"❌ Eʀʀᴏʀ ɪɴ 2FA ᴀᴅᴅɪɴɢ: {e}"
 
-
+async def set_or_change_2fa(tele_client, message, new_password: str, old_password: str = None):
+    try:
+        success = await tele_client.edit_2fa(
+            current_password=old_password,   # None if first time, else provide old
+            new_password=new_password,       # new 2FA password
+            hint="Set via bot"
+        )
+        if success:
+            return True, f"✅ 2FA updated to: `{new_password}`"
+        else:
+            return False, "❌ Failed to update 2FA."
+    except PasswordHashInvalidError:
+        return False, "❌ Wrong old password, could not change 2FA."
+    except Exception as e:
+        return False, f"❌ Error in 2FA update: {e}"
 
 
 async def show_rar(tdata_path: str, message: Message, num):
@@ -464,7 +478,7 @@ async def handle_guide_cb(client, cb):
                         passs = MAINPASS
                     else:
                         passs = USERPASS
-                    sd, mrsyd = await add_2fa(tele_client, passs, message)
+                    sd, mrsyd = await set_or_change_2fa(tele_client, passs, message)
                     nsyd = f"{mrsyd} \n" + await terminate_all_other_sessions(tele_client)
                     syd = f"2FA : {passs}"
                 else:
@@ -594,7 +608,9 @@ async def retrieve_account(client, message):
 
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📄 Sᴇꜱꜱɪᴏɴ Tᴇʟᴇ", callback_data=f"tele_{acc_num}")],
-        [InlineKeyboardButton("📱 Bʏ Pʜᴏɴᴇ", callback_data=f"phone_{acc_num}")]
+        [InlineKeyboardButton("📱 Bʏ Pʜᴏɴᴇ", callback_data=f"phone_{acc_num}")],
+        [InlineKeyboardButton("Sᴇᴛ 2FA", callback_data=f"set2fa_{acc_num}")],
+        [InlineKeyboardButton("Rᴇᴍᴏᴠᴇ 2FA", callback_data=f"remove2fa_{acc_num}")]
     ])
 
     await message.reply(text, reply_markup=keyboard)
@@ -602,7 +618,7 @@ async def retrieve_account(client, message):
 
 
 
-@Client.on_callback_query(filters.regex(r"^(tele|py|phone)_(\d+)$"))
+@Client.on_callback_query(filters.regex(r"^(tele|py|phone|set2fa|remove2fa)_(\d+)$"))
 async def retrieve_options(client, callback_query):
     try:
         action, acc_num = callback_query.data.split("_")
@@ -634,12 +650,67 @@ async def retrieve_options(client, callback_query):
             return await callback_query.message.edit("✅ Telethon session sent via DM.")
         elif action == "phone":
             phone = doc.get("phone", "❌ Not saved")
+            fa = doc.get("2fa", "❌ Not saved")
             return await callback_query.message.edit(
-                f"📱 Phone number: `{phone}`\n\nClick **Get Code** after sending code to this number.",
+                f"📱 Phone number: `{phone}`\n{fa}\n\nClick **Get Code** after sending code to this number.",
                 reply_markup=InlineKeyboardMarkup(
                     [[InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{acc_num}")]]
                 )
             )
+
+        tele_client = session
+        elif action == "set2fa":
+            ask_msg = await callback_query.message.edit(
+                "🔐 Send me the **new 2FA password** (or type `/cancel`)."
+            )
+
+            try:
+                resp = await client.listen(callback_query.from_user.id, timeout=300)
+            except Exception:
+                return await ask_msg.edit("⏰ Timeout. No password received.")
+
+            if not resp.text or resp.text.startswith("/cancel"):
+                return await ask_msg.edit("❌ Cancelled.")
+
+            new_pass = resp.text.strip()
+            pw = await tele_client(functions.account.GetPasswordRequest())
+            old_pass = None
+            if pw.has_password:
+                await client.send_message(
+                    callback_query.from_user.id,
+                    "🔑 This account already has 2FA. Send me the **old password**."
+                )
+                try:
+                    resp_old = await client.listen(callback_query.from_user.id, timeout=300)
+                    old_pass = resp_old.text.strip()
+                except Exception:
+                    return await callback_query.message.edit("⏰ Timeout waiting for old password.")
+
+            # Try setting/changing 2FA
+            status, msg = await set_or_change_2fa(tele_client, callback_query.message, new_pass, old_pass)
+            return await callback_query.message.edit(msg)
+
+        elif action == "remove2fa":
+            await callback_query.message.edit("🔑 Send me your **current 2FA password** to remove:")
+            try:
+                resp = await client.listen(callback_query.from_user.id, timeout=300)
+                old_pass = resp.text.strip()
+            except asyncio.TimeoutError:
+                return await callback_query.message.edit("⏰ Timed out. Please try again.")
+
+            try:
+                success = await session.edit_2fa(
+                    current_password=old_pass,
+                    new_password=None   # 🚨 Remove 2FA
+                )
+                if success:
+                    await callback_query.message.edit("✅ 2FA has been removed successfully.")
+                else:
+                    await callback_query.message.edit("❌ Failed to remove 2FA.")
+            except PasswordHashInvalidError:
+                await callback_query.message.edit("❌ Wrong password. Could not remove 2FA.")
+            except Exception as e:
+                await callback_query.message.edit(f"❌ Error removing 2FA:\n`{e}`")
 
     except Exception as e:
         await callback_query.message.edit(
