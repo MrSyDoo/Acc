@@ -261,6 +261,13 @@ class Database:
         cursor = self.col.find({"account_num": {"$in": acc_nums}})
         return [acc async for acc in cursor]
 
+    async def reset_field(self, user_id, field: str, value="?"):
+        await self.col.update_one(
+            {"_id": user_id},
+            {"$set": {field: value}}
+        )
+  
+
     async def grant_account(self, user_id: int, acc_num: int):
         acc = await self.col.find_one({"account_num": acc_num})
         if not acc:
@@ -653,7 +660,7 @@ async def retrieve_options(client, callback_query):
             return await callback_query.message.edit("✅ Telethon session sent via DM.")
         elif action == "phone":
             phone = doc.get("phone", "❌ Not saved")
-            fa = doc.get("2fa", "❌ Not saved")
+            fa = doc.get("twofa", "❌ Not saved")
             return await callback_query.message.edit(
                 f"📱 Phone number: `{phone}`\n{fa}\n\nClick **Get Code** after sending code to this number.",
                 reply_markup=InlineKeyboardMarkup(
@@ -690,6 +697,8 @@ async def retrieve_options(client, callback_query):
 
             # Try setting/changing 2FA
             status, msg = await set_or_change_2fa(tele_client, callback_query.message, new_pass, old_pass)
+            if status:
+                await db.reset_field(acc_num, "twofa", f"2FA: {new_pass}")
             return await callback_query.message.edit(msg)
 
         elif action == "remove2fa":
@@ -707,6 +716,7 @@ async def retrieve_options(client, callback_query):
                 )
                 if success:
                     await callback_query.message.edit("✅ 2FA has been removed successfully.")
+                    await db.reset_field(acc_num, "twofa", "2FA: Disabled")
                 else:
                     await callback_query.message.edit("❌ Failed to remove 2FA.")
             except PasswordHashInvalidError:
