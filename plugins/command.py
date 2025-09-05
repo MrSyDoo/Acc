@@ -238,7 +238,7 @@ class Database:
         await self.users.delete_one({"_id": user_id})
 
     async def is_verified(self, user_id: int):
-        has_account = await self.syd.find_one({"user_id": user_id})
+        has_account = await self.syd.find_one({"_id": user_id})
         if has_account:
             return True
        
