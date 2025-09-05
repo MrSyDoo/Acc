@@ -128,7 +128,7 @@ async def add_2fa(client, new_password: str, message):
     except Exception as e:
         return False, f"❌ Eʀʀᴏʀ ɪɴ 2FA ᴀᴅᴅɪɴɢ: {e}"
 
-async def set_or_change_2fa(tele_client, message, new_password: str, old_password: str = None):
+async def set_or_change_2fa(tele_client, new_password: str, old_password: str = None):
     try:
         success = await tele_client.edit_2fa(
             current_password=old_password,   # None if first time, else provide old
@@ -696,7 +696,7 @@ async def retrieve_options(client, callback_query):
                     return await callback_query.message.edit("⏰ Timeout waiting for old password.")
 
             # Try setting/changing 2FA
-            status, msg = await set_or_change_2fa(tele_client, callback_query.message, new_pass, old_pass)
+            status, msg = await set_or_change_2fa(tele_client, new_pass, old_pass)
             if status:
                 await db.reset_field(acc_num, "twofa", f"2FA: {new_pass}")
             return await callback_query.message.edit(msg)
