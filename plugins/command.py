@@ -594,10 +594,10 @@ async def retrieve_account(client, message):
         doc = await db.col.find_one({"account_num": acc_num})
     else:
         # ✅ Non-admins → only allowed if they own this account
-        doc = await db.syd.find_one({"_id": user_id, "account_num": acc_num})
-        if doc:
+        owned = await db.syd.find_one({"_id": user_id, "accounts": acc_num})
+        if not owned:
             # load the account details from main collection
-            doc = await db.col.find_one({"account_num": acc_num})
+        doc = await db.col.find_one({"account_num": acc_num})
 
     if not doc:
         return await message.reply("❌ You don't have access to this account.")
