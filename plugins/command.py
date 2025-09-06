@@ -618,7 +618,8 @@ async def retrieve_account(client, message):
         [InlineKeyboardButton("📄 Sᴇꜱꜱɪᴏɴ Tᴇʟᴇ", callback_data=f"tele_{acc_num}")],
         [InlineKeyboardButton("📱 Bʏ Pʜᴏɴᴇ", callback_data=f"phone_{acc_num}")],
         [InlineKeyboardButton("Sᴇᴛ 2FA", callback_data=f"set2fa_{acc_num}"),
-         InlineKeyboardButton("Rᴇᴍᴏᴠᴇ 2FA", callback_data=f"remove2fa_{acc_num}")]
+         InlineKeyboardButton("Rᴇᴍᴏᴠᴇ 2FA", callback_data=f"remove2fa_{acc_num}")],
+        [InlineKeyboardButton("Pᴜʀɢᴇ ᴄʜᴀᴛꜱ", callback_data=f"delchats_{acc_num}")]
     ])
 
     await message.reply(text, reply_markup=keyboard)
@@ -835,7 +836,7 @@ async def delete_all_chats(client, callback_query):
             try:
                 await tele_client.delete_dialog(dialog.id)
             except Exception as e:
-                print(f"❌ Failed to delete {dialog.name or dialog.id}: {e}")
+                callback_query.message.edit(f"❌ Failed to delete {dialog.name or dialog.id}: {e}")
 
         await callback_query.answer("✅ All chats deleted successfully!", show_alert=True)
 
