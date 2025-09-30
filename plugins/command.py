@@ -1155,3 +1155,94 @@ async def schedule_secure(client, message):
     # run in background
     asyncio.create_task(delayed_secure())
 
+
+
+import os
+import re
+import base64
+import shutil
+import zipfile
+import tempfile
+from pyrogram import Client, filters
+from telethon.sync import TelegramClient
+from telethon.sessions import StringSession
+from telethon.tl.functions.messages import DeleteHistoryRequest
+
+@Client.on_message(filters.command("purge") & filters.private)
+async def purge_accounts(client, message):
+    user_id = message.from_user.id
+
+    if len(message.command) < 2:
+        return await message.reply("⚠️ Usage: `/purge 10-20`", quote=True)
+
+    # parse range
+    range_str = message.command[1]
+    match = re.match(r"^(\d+)-(\d+)$", range_str)
+    if not match:
+        return await message.reply("❌ Invalid format. Use `/purge 10-20`", quote=True)
+
+    start, end = int(match.group(1)), int(match.group(2))
+    if start > end:
+        start, end = end, start
+
+    await message.reply(f"🧹 Starting purge for accounts {start} to {end}…")
+
+    for acc_num in range(start, end + 1):
+        try:
+            # ownership check
+            if user_id in ADMINS:
+                doc = await db.col.find_one({"account_num": acc_num})
+            else:
+                owned = await db.syd.find_one({"_id": user_id, "accounts": acc_num})
+                if not owned:
+                    await client.send_message(user_id, f"❌ You don’t own account {acc_num}, skipped.")
+                    continue
+                doc = await db.col.find_one({"account_num": acc_num})
+
+            if not doc:
+                await client.send_message(user_id, f"❌ Account {acc_num} not found, skipped.")
+                continue
+
+            # temp dir
+            temp_dir = tempfile.mkdtemp()
+            tdata_zip = os.path.join(temp_dir, "tdata.zip")
+            with open(tdata_zip, "wb") as f:
+                f.write(base64.b64decode(doc["tdata"]))
+
+            extract_dir = os.path.join(temp_dir, "tdata")
+            with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
+                zip_ref.extractall(extract_dir)
+
+            try:
+                tdesk = TDesktop(extract_dir)
+                if not tdesk.isLoaded():
+                    await client.send_message(user_id, f"⚠️ Account {acc_num}: tdata corrupted.")
+                    continue
+
+                tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
+                await tele_client.connect()
+
+                if not await tele_client.is_user_authorized():
+                    await client.send_message(user_id, f"⚠️ Account {acc_num}: Not authorized (needs login/2FA).")
+                    continue
+
+                deleted_count = 0
+                async for dialog in tele_client.iter_dialogs():
+                    try:
+                        await tele_client.delete_dialog(dialog.id)
+                        deleted_count += 1
+                    except Exception as e:
+                        await client.send_message(user_id, f"❌ Failed to delete {dialog.name or dialog.id} for acc {acc_num}: {e}")
+
+                await client.send_message(user_id, f"✅ Account {acc_num}: Purged {deleted_count} chats.")
+
+            except Exception as e:
+                await client.send_message(user_id, f"❌ Error purging account {acc_num}: {e}")
+
+            finally:
+                shutil.rmtree(temp_dir)
+
+        except Exception as e:
+            await client.send_message(user_id, f"🚨 Fatal error in purge for account {acc_num}: {e}")
+
+
