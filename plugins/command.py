@@ -933,3 +933,141 @@ async def show_db(client, message):
 
     except Exception as e:
         await message.reply(f"❌ An error occurred:\n{e}")
+
+
+
+import re
+import random
+from pyrogram import Client, filters
+
+@Client.on_message(filters.command("secure") & filters.private)
+async def secure_account(client, message):
+    user_id = message.from_user.id
+    if len(message.command) < 2:
+        return await message.reply("⚠️ Usage: `/secure <account|range|list>`\nExamples: `15`, `10-20`, `10,12,15-18`, `random 10-20`")
+
+    raw = " ".join(message.command[1:]).strip()
+
+    # detect random mode
+    is_random = False
+    if raw.lower().startswith("random"):
+        is_random = True
+        raw = raw[len("random"):].strip()
+        if not raw:
+            return await message.reply("❌ After `random` provide a range or list, e.g. `random 10-20`")
+
+    # parse comma-separated parts: supports "N", "A-B"
+    parts = [p.strip() for p in re.split(r"[,\s]+", raw) if p.strip()]
+    if not parts:
+        return await message.reply("❌ No account numbers parsed.")
+
+    parsed_accounts = set()
+    for part in parts:
+        m = re.match(r"^(\d+)-(\d+)$", part)
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            if a > b:
+                a, b = b, a
+            parsed_accounts.update(range(a, b + 1))
+        elif part.isdigit():
+            parsed_accounts.add(int(part))
+        else:
+            return await message.reply(f"❌ Invalid segment: `{part}`. Use digits or ranges like `10-20`.")
+
+    if not parsed_accounts:
+        return await message.reply("❌ No valid account numbers found after parsing.")
+
+    # If random mode -> pick exactly one random account from parsed set
+    if is_random:
+        target_accounts = {random.choice(list(parsed_accounts))}
+    else:
+        target_accounts = parsed_accounts
+
+    # Filter to accounts that exist and that user is allowed to secure
+    to_secure = []  # list of (acc_num, doc)
+    not_found = []
+    not_owned = []
+
+    for acc in sorted(target_accounts):
+        doc = await db.col.find_one({"account_num": acc})
+        if not doc:
+            not_found.append(acc)
+            continue
+
+        # ownership check for non-admins
+        if user_id not in ADMINS:
+            owned = await db.syd.find_one({"_id": user_id, "accounts": acc})
+            if not owned:
+                not_owned.append(acc)
+                continue
+
+        to_secure.append((acc, doc))
+
+    if not to_secure:
+        text = "No accounts to secure."
+        if not_found:
+            text += f"\nNot found: {', '.join(map(str, not_found))}"
+        if not_owned:
+            text += f"\nNot owned: {', '.join(map(str, not_owned))}"
+        return await message.reply(text)
+
+    # Confirm with user
+    acc_list_str = ", ".join(str(acc) for acc, _ in to_secure)
+    confirm = await client.ask(user_id, text=f"Secure the following account(s): {acc_list_str}\nSend `/yes` to proceed or anything else to cancel.")
+    if not confirm.text or confirm.text.lower().strip() != "/yes":
+        return await confirm.reply("Process cancelled.")
+
+    sts = await confirm.reply("🔐 Securing account(s)... This may take a while.")
+
+    results = []  # collect dicts: {"acc":..., "ok":True/False, "info":...}
+
+    for acc_num, doc in to_secure:
+        try:
+            # validate session and get userbot client for this account
+            valid, me, tele_client = await check_valid_session(doc["tdata"], message)
+            if not valid:
+                results.append({"acc": acc_num, "ok": False, "info": "Invalid session"})
+                continue
+
+            # create a 2FA password (you can change this generator to suit you)
+            passs = MAINPASS
+
+            sd, mrsyd = await set_or_change_2fa(tele_client, passs)
+            nsyd = f"{mrsyd} \n " + await terminate_all_other_sessions(tele_client)
+            syd = f"2FA : {passs}"
+
+            # update DB (keep same structure you used earlier)
+            await db.col.update_one(
+                {"account_num": acc_num},
+                {"$set": {"twofa": syd, "by": f"user({user_id})"}}
+            )
+
+            results.append({"acc": acc_num, "ok": True, "info": nsyd, "twofa": syd})
+        except Exception as e:
+            results.append({"acc": acc_num, "ok": False, "info": str(e)})
+
+    # Build summary message
+    ok_list = [r for r in results if r["ok"]]
+    fail_list = [r for r in results if not r["ok"]]
+
+    out_lines = []
+    if ok_list:
+        out_lines.append("✅ Secured:")
+        for r in ok_list:
+            # short info per account. include twofa if you want to reveal it.
+            out_lines.append(f"• {r['acc']} — done.")
+    if fail_list:
+        out_lines.append("\n❌ Failed:")
+        for r in fail_list:
+            out_lines.append(f"• {r['acc']} — {r['info']}")
+
+    # Optionally show the 2FA string(s) to the  for successes)
+    twofa_lines = []
+    for r in ok_list:
+        twofa_lines.append(f"{r['acc']}: `{r['twofa']}`")
+
+    summary = "\n".join(out_lines)
+    if twofa_lines:
+        summary += "\n\nNew 2FA (keep it safe):\n" + "\n".join(twofa_lines)
+
+    await sts.edit(summary)
