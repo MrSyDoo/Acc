@@ -1071,3 +1071,87 @@ async def secure_account(client, message):
         summary += "\n\nNew 2FA (keep it safe):\n" + "\n".join(twofa_lines)
 
     await sts.edit(summary)
+
+
+
+import re
+import asyncio
+from datetime import timedelta
+
+def parse_delay(delay_str: str) -> int:
+    """
+    Parse string like '10h', '30m', '2d' into seconds.
+    Returns seconds as int, or None if invalid.
+    """
+    match = re.match(r"^(\d+)([smhd])$", delay_str.lower().strip())
+    if not match:
+        return None
+    value, unit = int(match.group(1)), match.group(2)
+    if unit == "s":
+        return value
+    elif unit == "m":
+        return value * 60
+    elif unit == "h":
+        return value * 3600
+    elif unit == "d":
+        return value * 86400
+    return None
+
+
+@Client.on_message(filters.command("schedule_secure") & filters.private)
+async def schedule_secure(client, message):
+    user_id = message.from_user.id
+    if len(message.command) < 3:
+        return await message.reply("⚠️ Usage: `/schedule_secure account_number delay`\nExample: `/schedule_secure 39 10h`")
+
+    try:
+        acc_num = int(message.command[1])
+    except ValueError:
+        return await message.reply("❌ Invalid account number.")
+
+    delay_str = message.command[2]
+    delay_seconds = parse_delay(delay_str)
+    if delay_seconds is None:
+        return await message.reply("❌ Invalid delay format. Use like `10h`, `30m`, `2d`.")
+
+    # ownership / admin check (reuse from /secure)
+    if user_id in ADMINS:
+        doc = await db.col.find_one({"account_num": acc_num})
+    else:
+        owned = await db.syd.find_one({"_id": user_id, "accounts": acc_num})
+        if not owned:
+            return await message.reply("❌ You don’t own this account.")
+        doc = await db.col.find_one({"account_num": acc_num})
+
+    if not doc:
+        return await message.reply("❌ Account not found.")
+
+    # confirm scheduling
+    await message.reply(f"⏳ Scheduled account {acc_num} to be secured in {delay_str}.")
+
+    async def delayed_secure():
+        try:
+            await asyncio.sleep(delay_seconds)
+
+            valid, me, tele_client = await check_valid_session(doc["tdata"], message)
+            if not valid:
+                return await client.send_message(user_id, f"❌ Scheduled secure failed for {acc_num}: invalid session.")
+
+            passs = f"Sec{acc_num}_{user_id}_{random.randint(1000,9999)}"
+            sd, mrsyd = await set_or_change_2fa(tele_client, passs)
+            nsyd = f"{mrsyd} \n " + await terminate_all_other_sessions(tele_client)
+            syd = f"2FA : {passs}"
+
+            await db.col.update_one(
+                {"account_num": acc_num},
+                {"$set": {"twofa": syd, "by": f"user({user_id})"}}
+            )
+
+            await client.send_message(user_id, f"✅ Scheduled secure done for {acc_num}\n\n{nsyd}\n\n🔑 `{syd}`")
+
+        except Exception as e:
+            await client.send_message(user_id, f"🚨 Error in scheduled secure for {acc_num}: `{e}`")
+
+    # run in background
+    asyncio.create_task(delayed_secure())
+
