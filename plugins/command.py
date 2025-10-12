@@ -278,7 +278,7 @@ class Database:
                 account_num = await self.get_next_account_num()
         doc = {
             "_id": user_id,
-            "account_num": info['account_num'],
+            "account_num": account_num,
             "name": info.get("name", "?"),
             "phone": info.get("phone", "?"),
             "country": info.get("country", "N/A"),
@@ -289,8 +289,8 @@ class Database:
             "tdata": info.get("tdata", None),
             "session_string": info.get("session_string", None),
         }
-        await self.col.update_one({"account_num": info['account_num']}, {"$set": doc}, upsert=True)
-        return info['account_num']
+        await self.col.update_one({"account_num": account_num}, {"$set": doc}, upsert=True)
+        return account_num
 
     async def get_next_account_num(self):
         last = await self.col.find_one(sort=[("account_num", -1)])
