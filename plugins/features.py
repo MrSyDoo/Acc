@@ -256,30 +256,79 @@ async def stock_command(client, message):
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     await message.reply("**🛒 Account Stock**\n\nPlease choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram import Client, filters, ParseMode # Assuming these imports are present
+# Assuming db and paginate_buttons are defined elsewhere
+# from your_db_module import db
+# from your_utils import paginate_buttons 
+
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
 async def view_stock_section_cb(client, cb):
-    page = int(cb.matches[0].group(1))
-    section = cb.matches[0].group(2)
-    
-    items = [item async for item in db.get_stock_in_section(section)]
-    
-    if not items:
-        await cb.answer("This section is currently empty.", show_alert=True)
-        return
+    # Always acknowledge the callback query first, even if an error occurs later
+    try:
+        await cb.answer() 
+    except:
+        pass # Ignore errors if we can't answer the query (e.g., already answered)
+
+    try:
+        # Extract data from callback query
+        page = int(cb.matches[0].group(1))
+        section = cb.matches[0].group(2)
         
-    full_items = []
-    for item in items:
-        acc_doc = await db.find_account_by_num(item['account_num'])
-        if acc_doc:
-            full_items.append({"price": item.get('price',0), "acc_num": acc_doc['account_num'], "country": acc_doc.get('country','N/A'), "age": acc_doc.get('age','Unknown')})
-    
-    full_items.sort(key=lambda x: x['price'])
-    
-    buttons = [InlineKeyboardButton(f"${i['price']:.2f} - {i['country']} Account - {i['age']}", callback_data=f"confirm_buy_{i['acc_num']}") for i in full_items]
-    kbd_rows = paginate_buttons(buttons, page, f"view_stock_{section}")
-    kbd_rows.append([InlineKeyboardButton("◀️ Back to Categories", callback_data="back_to_stock_main")])
-    
-    await cb.message.edit(f"**Available in `{section}`** ({len(full_items)} total):", reply_markup=InlineKeyboardMarkup(kbd_rows), parse_mode=ParseMode.MARKDOWN)
+        # 1. Fetch items in the specific section
+        items = [item async for item in db.get_stock_in_section(section)]
+        
+        if not items:
+            await cb.message.edit("This section is currently empty.")
+            return
+            
+        # 2. Compile full item details
+        full_items = []
+        for item in items:
+            acc_doc = await db.find_account_by_num(item['account_num'])
+            if acc_doc:
+                full_items.append({
+                    "price": item.get('price', 0), 
+                    "acc_num": acc_doc['account_num'], 
+                    "country": acc_doc.get('country', 'N/A'), 
+                    "age": acc_doc.get('age', 'Unknown')
+                })
+        
+        # If all accounts are missing from the main DB, handle it
+        if not full_items:
+            await cb.message.edit(f"**Available in `{section}`**: ⚠️ No valid accounts found for the stock items.", 
+                                  parse_mode=ParseMode.MARKDOWN)
+            return
+
+        # 3. Sort and create buttons
+        full_items.sort(key=lambda x: x['price'])
+        
+        buttons = [InlineKeyboardButton(
+            f"${i['price']:.2f} - {i['country']} Account - {i['age']}", 
+            callback_data=f"confirm_buy_{i['acc_num']}"
+        ) for i in full_items]
+        
+        kbd_rows = paginate_buttons(buttons, page, f"view_stock_{section}")
+        
+        # 4. Add the 'Back' button
+        kbd_rows.append([InlineKeyboardButton("◀️ Back to Categories", callback_data="back_to_stock_main")])
+        
+        
+        await cb.message.edit(
+            f"**Available in `{section}`** ({len(full_items)} total):", 
+            reply_markup=InlineKeyboardMarkup(kbd_rows), 
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    except Exception as e:
+        # Use cb.message.reply to send the error
+        await cb.message.reply(
+            f"❌ **An unexpected error occurred while loading stock.**\n\n"
+            f"Error details: `{e}`", 
+            quote=True, # Reply to the original message for context
+            parse_mode=ParseMode.MARKDOWN
+        )
+
 
 @Client.on_callback_query(filters.regex(r"^confirm_buy_(\d+)"))
 async def confirm_buy_cb(client, cb):
