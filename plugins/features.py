@@ -130,11 +130,11 @@ async def pay_command(client, message):
 async def add_account_interactive(client, message):
     tele_client = None
     try:
-        api_idd = await message.reply("Please send the phone number in international format (e.g., `+12223334444`).", parse_mode=ParseMode.MARKDOWN)
+        api_idd = await message.reply("Please send your api id", parse_mode=ParseMode.MARKDOWN)
         api_id_mess = await client.listen(message.chat.id, timeout=300)
         api_id = api_id_mess.text.strip()
         await api_idd.delete()
-        api_has = await message.reply("Please send the phone number in international format (e.g., `+12223334444`).", parse_mode=ParseMode.MARKDOWN)
+        api_has = await message.reply("Please send your api hash", parse_mode=ParseMode.MARKDOWN)
         api_hash_mess = await client.listen(message.chat.id, timeout=300)
         api_hash = api_hash_mess.text.strip()
         await api_has.delete()
