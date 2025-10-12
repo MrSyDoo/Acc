@@ -7,7 +7,6 @@ import os
 import re
 import io
 import base64
-
 import zipfile
 import rarfile
 import shutil
@@ -206,37 +205,36 @@ async def terminate_all_other_sessions(client):
     except Exception as e:
         return f"❌ Failed to terminate sessions: {e}"
 
-
-
 class Database:
     def __init__(self, uri, database_name):
         self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         self.db = self._client[database_name]
-        self.col = self.db.used   # main accounts
-        self.syd = self.db.syd
-        self.users = self.db.users # ownership mapping
+        self.col = self.db.accounts
+        self.syd = self.db.ownership
+        self.users = self.db.bot_users
         self.verified = self.db.verified_users
+        self.stock = self.db.stock
+        self.balances = self.db.balances
+        self.locks = self.db.locks
+        self.sections = self.db.sections
 
-
+    # --- User & Verification Management ---
     async def add_user(self, user_id: int):
-        await self.users.update_one({ "_id": user_id }, { "$set": {} }, upsert=True)
+        await self.users.update_one({"_id": user_id}, {"$set": {}}, upsert=True)
+        await self.balances.update_one({"_id": user_id}, {"$setOnInsert": {"balance": 0.0}}, upsert=True)
 
     async def get_all_users(self):
         return self.users.find({})
 
     async def total_users_count(self):
         return await self.users.count_documents({})
-    
+
     async def delete_user(self, user_id: int):
         await self.users.delete_one({"_id": user_id})
-
+        
     async def is_verified(self, user_id: int):
         has_account = await self.syd.find_one({"_id": user_id})
-        if has_account:
-            return True
-       
-        verified = await self.verified.find_one({"_id": user_id})
-        return bool(verified)
+        return bool(has_account) or bool(await self.verified.find_one({"_id": user_id}))
 
     async def add_verified(self, user_id: int):
         await self.verified.update_one({"_id": user_id}, {"$set": {"verified": True}}, upsert=True)
@@ -244,48 +242,27 @@ class Database:
     async def revoke_verified(self, user_id: int):
         await self.verified.delete_one({"_id": user_id})
 
-    async def get_user_account_info(self, user_id: int):
-        doc = await self.syd.find_one({"_id": user_id})
-        if not doc or "accounts" not in doc:
-            return []
+    # --- Balance Management ---
+    async def get_balance(self, user_id: int):
+        bal = await self.balances.find_one({"_id": user_id})
+        return bal['balance'] if bal else 0.0
 
-        acc_nums = doc["accounts"]
+    async def update_balance(self, user_id: int, amount: float):
+        await self.balances.update_one({"_id": user_id}, {"$inc": {"balance": amount}}, upsert=True)
 
-        cursor = self.col.find({"account_num": {"$in": acc_nums}})
-        return [acc async for acc in cursor]
+    # --- Transaction Locking ---
+    async def lock_user(self, user_id: int):
+        try:
+            await self.locks.insert_one({"_id": user_id})
+            return True
+        except:
+            return False
 
-    async def reset_field(self, user_id, field: str, value="?"):
-        await self.col.update_one(
-            {"_id": user_id},
-            {"$set": {field: value}}
-        )
-  
+    async def unlock_user(self, user_id: int):
+        await self.locks.delete_one({"_id": user_id})
 
-    async def grant_account(self, user_id: int, acc_num: int):
-        acc = await self.col.find_one({"account_num": acc_num})
-        if not acc:
-            return False, f"❌ Account #{acc_num} does not exist."
-
-        await self.syd.update_one(
-            {"_id": user_id},
-            {"$addToSet": {"accounts": acc_num}},  # prevent duplicate entries
-            upsert=True,
-        )
-        return True, f"✅ Granted account #{acc_num} to user {user_id}"
-
-    async def list_user_accounts(self, user_id: int):
-        """List granted accounts for a user"""
-        doc = await self.syd.find_one({"_id": user_id})
-        return doc.get("accounts", []) if doc else []
-
-    async def get_next_account_num(self):
-        """Return next unique account number"""
-        last = await self.col.find_one(sort=[("account_num", -1)])
-        if not last:
-            return 1
-        return last["account_num"] + 1
-
-    async def save_account(self, user_id, info, tdata_bytes):
+    # --- Account & Ownership Management ---
+    async def save_account(self, user_id, info):
         existing = await self.col.find_one({"_id": user_id})
         if existing:
             account_num = existing["account_num"]
@@ -299,32 +276,168 @@ class Database:
                     account_num = await self.get_next_account_num()
             else:
                 account_num = await self.get_next_account_num()
-
         doc = {
             "_id": user_id,
-            "account_num": account_num,
+            "account_num": info['account_num'],
             "name": info.get("name", "?"),
             "phone": info.get("phone", "?"),
+            "country": info.get("country", "N/A"),
+            "age": info.get("age", "Unknown"),
             "twofa": info.get("twofa", "?"),
             "spam": info.get("spam", "?"),
             "by": info.get("by", "?"),
-            "tdata": base64.b64encode(tdata_bytes).decode("utf-8"),
+            "tdata": info.get("tdata", None),
+            "session_string": info.get("session_string", None),
         }
-        await self.col.update_one({"_id": user_id}, {"$set": doc}, upsert=True)
-        return account_num
+        await self.col.update_one({"account_num": info['account_num']}, {"$set": doc}, upsert=True)
+        return info['account_num']
 
-    async def total_users_count(self):
-        return await self.col.count_documents({})
+    async def get_next_account_num(self):
+        last = await self.col.find_one(sort=[("account_num", -1)])
+        return (last["account_num"] + 1) if last else 1
     
+    async def find_account_by_num(self, acc_num: int):
+        return await self.col.find_one({"account_num": acc_num})
+
+    async def grant_account(self, user_id: int, acc_num: int):
+        acc = await self.col.find_one({"account_num": acc_num})
+        if not acc:
+            return False, f"Account #{acc_num} does not exist."
+        
+        await self.stock.delete_many({"account_num": acc_num})
+        await self.syd.update_one(
+            {"_id": user_id},
+            {"$addToSet": {"accounts": acc_num}},
+            upsert=True,
+        )
+        return True, f"Granted account #{acc_num} to user {user_id}"
+
+    async def get_user_account_info(self, user_id: int):
+        doc = await self.syd.find_one({"_id": user_id})
+        if not doc or "accounts" not in doc:
+            return []
+        cursor = self.col.find({"account_num": {"$in": doc["accounts"]}})
+        return [acc async for acc in cursor]
+
+    async def validate_accounts_for_stock(self, acc_nums: list):
+        owned_accounts_cursor = self.syd.find({}, {"accounts": 1})
+        owned_set = set()
+        async for doc in owned_accounts_cursor:
+            owned_set.update(doc.get("accounts", []))
+            
+        valid_accs, invalid_accs = [], []
+        for num in acc_nums:
+            if num in owned_set:
+                invalid_accs.append(num)
+                continue
+            acc_doc = await self.find_account_by_num(num)
+            if not acc_doc:
+                invalid_accs.append(num)
+                continue
+            valid_accs.append(num)
+        return valid_accs, invalid_accs
+        
     async def list_accounts(self):
-        """Return all accounts"""
         cursor = self.col.find({}, {"_id": 0, "account_num": 1, "name": 1, "phone": 1, "by": 1})
         return [doc async for doc in cursor]
 
+    # --- Stock & Section Management ---
+    async def add_stock_item(self, price: float, acc_num: int, section: str):
+        exists = await self.stock.find_one({"account_num": acc_num, "section": section})
+        if exists: return False
+        await self.stock.insert_one({"account_num": acc_num, "section": section.strip(), "price": price})
+        return True
+
+    async def get_stock_sections(self):
+        return [s['name'] async for s in self.sections.find({}, {"_id": 0, "name": 1})]
+
+    async def add_section(self, section_name: str):
+        exists = await self.sections.find_one({"name": section_name})
+        if exists: return False
+        await self.sections.insert_one({"name": section_name})
+        return True
+
+    async def remove_section(self, section_name: str):
+        await self.stock.delete_many({"section": section_name})
+        await self.sections.delete_one({"name": section_name})
+
+    async def rename_section(self, old_name: str, new_name: str):
+        await self.stock.update_many({"section": old_name}, {"$set": {"section": new_name}})
+        await self.sections.update_one({"name": old_name}, {"$set": {"name": new_name}})
+
+    async def count_stock_in_section(self, section: str):
+        return await self.stock.count_documents({"section": section})
+
+    async def get_stock_in_section(self, section: str):
+        return self.stock.find({"section": section})
+
+    async def get_stock_item_by_acc_num(self, acc_num: int):
+        return await self.stock.find_one({"account_num": acc_num})
 
 db = Database(Config.DB_URL, Config.DB_NAME)
 
-  
+# =====================================================================================
+# NEW HELPER FUNCTIONS
+# =====================================================================================
+
+def get_country_from_phone(phone_number: str):
+    try:
+        # Import the library here to keep it self-contained
+        import phonenumbers
+        from phonenumbers import geocoder
+        parsed_num = phonenumbers.parse(phone_number)
+        return phonenumbers.region_code_for_number(parsed_num)
+    except:
+        return "N/A"
+
+async def get_account_age(tele_client):
+    try:
+        await tele_client.send_message('@tgdnabot', '/start')
+        await asyncio.sleep(4)
+        messages = await tele_client.get_messages('@tgdnabot', limit=1)
+        if not messages: return "Unknown (No reply)"
+
+        reply_text = messages[0].text
+        age_match = re.search(r"Account Age: (.+)", reply_text)
+        if age_match: return age_match.group(1).strip()
+        
+        created_match = re.search(r"Created: (.+)", reply_text)
+        if created_match: return f"Since {created_match.group(1).strip()}"
+            
+        return "Unknown (Format changed)"
+    except Exception:
+        return "Unknown (Error)"
+
+async def check_valid_session(doc):
+    tele_client = None
+    try:
+        if doc.get("session_string"):
+            tele_client = TelegramClient(StringSession(doc["session_string"]), API_ID, API_HASH)
+        elif doc.get("tdata"):
+            with tempfile.TemporaryDirectory() as tempdir:
+                tdata_bytes = base64.b64decode(doc['tdata'])
+                zip_path = os.path.join(tempdir, "tdata.zip")
+                with open(zip_path, "wb") as f: f.write(tdata_bytes)
+                extract_path = os.path.join(tempdir, "tdata")
+                with zipfile.ZipFile(zip_path, 'r') as z: z.extractall(extract_path)
+                
+                tdesk = TDesktop(extract_path)
+                if not tdesk.isLoaded(): return None, "Corrupted TData"
+                tele_client = await tdesk.ToTelethon(session=StringSession(), flag=UseCurrentSession)
+        else:
+            return None, "No session data found"
+
+        await tele_client.connect()
+        if await tele_client.is_user_authorized():
+            return tele_client, "OK"
+        else:
+            await tele_client.disconnect()
+            return None, "Not Authorized"
+    except Exception as e:
+        if tele_client and tele_client.is_connected(): await tele_client.disconnect()
+        return None, str(e)
+
+
 @Client.on_message(filters.document)
 @require_verified
 async def handle_archive(client, message):
@@ -490,8 +603,9 @@ async def handle_guide_cb(client, cb):
                     "twofa": syd,
                     "spam": getattr(me, "restricted", False),
                     "by":  f"{message.from_user.first_name}({message.from_user.id})",
+                    "tdata": tdata_bytes,
                 }
-                sydno = await db.save_account(me.id, info, tdata_bytes)
+                sydno = await db.save_account(me.id, info)
                 await show_rar(tdata_path, message, sydno)
                 
                 await message.reply(f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id}) \n ID: {sydno} \n PH: +{me.phone} \n {syd} \n {nsyd}", quote=True)
