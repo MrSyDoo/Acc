@@ -256,11 +256,6 @@ async def stock_command(client, message):
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     await message.reply("**🛒 Account Stock**\n\nPlease choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram import Client, filters, ParseMode # Assuming these imports are present
-# Assuming db and paginate_buttons are defined elsewhere
-# from your_db_module import db
-# from your_utils import paginate_buttons 
 
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
 async def view_stock_section_cb(client, cb):
