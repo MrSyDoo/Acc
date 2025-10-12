@@ -137,7 +137,11 @@ async def add_account_interactive(client, message):
         await ask_phone.delete()
         status_msg = await message.reply(f"⏳ Trying to log in to `{phone_number}`...", parse_mode=ParseMode.MARKDOWN)
         
-        tele_client = TelegramClient(StringSession(), Config.API_ID, Config.API_HASH)
+        tele_client = TelegramClient(
+            StringSession(),
+            int(Config.API_ID),
+            str(Config.API_HASH)
+        )
         await tele_client.connect()
         
         await tele_client.send_code_request(phone_number)
