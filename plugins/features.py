@@ -132,7 +132,7 @@ async def add_account_interactive(client, message):
     try:
         api_idd = await message.reply("Please send your api id", parse_mode=ParseMode.MARKDOWN)
         api_id_mess = await client.listen(message.chat.id, timeout=300)
-        api_id = int(api_id_mess.text.strip())
+        api_id = api_id_mess.text
         await api_idd.delete()
         api_has = await message.reply("Please send your api hash", parse_mode=ParseMode.MARKDOWN)
         api_hash_mess = await client.listen(message.chat.id, timeout=300)
