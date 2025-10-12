@@ -408,7 +408,7 @@ async def get_account_age(tele_client):
     except Exception:
         return "Unknown (Error)"
 
-async def check_valid_session(doc):
+async def check_valid_sesion(doc):
     tele_client = None
     try:
         if doc.get("session_string"):
