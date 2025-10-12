@@ -130,6 +130,14 @@ async def pay_command(client, message):
 async def add_account_interactive(client, message):
     tele_client = None
     try:
+        api_idd = await message.reply("Please send the phone number in international format (e.g., `+12223334444`).", parse_mode=ParseMode.MARKDOWN)
+        api_id_mess = await client.listen(message.chat.id, timeout=300)
+        api_id = api_id_mess.text.strip()
+        await api_idd.delete()
+        api_has = await message.reply("Please send the phone number in international format (e.g., `+12223334444`).", parse_mode=ParseMode.MARKDOWN)
+        api_hash_mess = await client.listen(message.chat.id, timeout=300)
+        api_hash = api_hash_mess.text.strip()
+        await api_has.delete()
         ask_phone = await message.reply("Please send the phone number in international format (e.g., `+12223334444`).", parse_mode=ParseMode.MARKDOWN)
         phone_msg = await client.listen(message.chat.id, timeout=300)
         phone_number = phone_msg.text.strip()
@@ -139,8 +147,8 @@ async def add_account_interactive(client, message):
         
         tele_client = TelegramClient(
             StringSession(),
-            int(Config.API_ID),
-            str(Config.API_HASH)
+            int(api_id),
+            str(api_hash)
         )
         await tele_client.connect()
         
