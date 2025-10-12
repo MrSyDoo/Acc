@@ -271,7 +271,7 @@ async def view_stock_section_cb(client, cb):
         section = cb.matches[0].group(2)
         
         # 1. Fetch items in the specific section
-        items = [item async for item in db.get_stock_in_section(section)]
+        items = [item async for item in await db.get_stock_in_section(section)]
         
         if not items:
             await cb.message.edit("This section is currently empty.")
