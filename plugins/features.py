@@ -134,6 +134,7 @@ async def add_account_interactive(client, message):
         api_id_mess = await client.listen(message.chat.id, timeout=300)
         api_id = api_id_mess.text
         await api_idd.delete()
+        await message.reply(api_id)
         api_has = await message.reply("Please send your api hash", parse_mode=ParseMode.MARKDOWN)
         api_hash_mess = await client.listen(message.chat.id, timeout=300)
         api_hash = api_hash_mess.text.strip()
@@ -146,6 +147,7 @@ async def add_account_interactive(client, message):
         status_msg = await message.reply(f"⏳ Trying to log in to `{phone_number}`...", parse_mode=ParseMode.MARKDOWN)
         
         tele_client = TelegramClient(StringSession(), api_id, api_hash)
+        await status_msg.edit("Trying To Connect ")
         await tele_client.connect()
         
         await tele_client.send_code_request(phone_number)
