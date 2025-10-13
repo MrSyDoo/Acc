@@ -415,7 +415,7 @@ async def check_valid_session(doc):
             tele_client = TelegramClient(StringSession(doc["session_string"]), API_ID, API_HASH)
         elif doc.get("tdata"):
             with tempfile.TemporaryDirectory() as tempdir:
-                tdata_bytes = base64.b64decode(doc['tdata'])
+                tdata_bytes = doc['tdata']
                 zip_path = os.path.join(tempdir, "tdata.zip")
                 with open(zip_path, "wb") as f: f.write(tdata_bytes)
                 extract_path = os.path.join(tempdir, "tdata")
