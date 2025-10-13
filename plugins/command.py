@@ -292,6 +292,13 @@ class Database:
         await self.col.update_one({"account_num": account_num}, {"$set": doc}, upsert=True)
         return account_num
 
+    async def reset_field(self, user_id, field: str, value="?"):
+        await self.col.update_one(
+            {"_id": user_id},
+            {"$set": {field: value}}
+        )
+
+
     async def get_next_account_num(self):
         last = await self.col.find_one(sort=[("account_num", -1)])
         return (last["account_num"] + 1) if last else 1
