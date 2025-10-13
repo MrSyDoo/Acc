@@ -733,7 +733,7 @@ async def retrieve_account(client, message):
 
     if not doc:
         return await message.reply("❌ You don't have access to this account.")
-    valid, me, session = await check_valid_session(doc["tdata"], message)
+    valid, me, session = await check_valid_session(doc, message)
     status = "✅ Valid" if valid else "❌ Invalid"
     show_2fa = (user_id not in ADMINS) or str(doc.get("by", "")).endswith(f"({user_id})")
     twofa_text = doc["twofa"] if show_2fa else f"🔒 Hidden\nBy {doc.get('by')}"
@@ -775,7 +775,7 @@ async def retrieve_options(client, callback_query):
         await callback_query.message.edit("⏳ Loading session from TData...")
 
         valid, me, session = await check_valid_session(
-            doc["tdata"], callback_query.message
+            doc, callback_query.message
         )
         
         tele_client = session
