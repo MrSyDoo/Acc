@@ -408,7 +408,7 @@ async def get_account_age(tele_client):
     except Exception:
         return "Unknown (Error)"
 
-async def check_valid_sesion(doc):
+async def check_valid_session(doc):
     tele_client = None
     try:
         if doc.get("session_string"):
@@ -669,7 +669,7 @@ async def handle_guide_cb(client, cb):
     finally:
         shutil.rmtree(tempdir, ignore_errors=True)
 
-async def check_valid_session(tdata_b64: str, message):
+async def check_vali_session(tdata_b64: str, message):
     temp_dir = tempfile.mkdtemp()
     tdata_zip = os.path.join(temp_dir, "tdata.zip")
 
