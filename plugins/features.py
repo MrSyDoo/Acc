@@ -64,7 +64,7 @@ async def check_age_command(client, message):
     status_msg = await message.reply(f"⏳ Checking age for account `#{acc_num}`...")
     tele_client = None
     try:
-        tele_client, status = await check_valid_session(doc, message)
+        tele_client, status = await check_valid_session(doc)
         if not tele_client:
             return await status_msg.edit(f"Could not start session for `#{acc_num}`: {status}")
 
