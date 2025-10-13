@@ -200,10 +200,17 @@ async def show_report_command(client, message):
     all_users = await db.users.find({}).to_list(length=None)
     for user in all_users:
         user_id = user['_id']
+        try:
+            tg_user = await client.get_users(user_id)
+            name = tg_user.first_name or "Unknown"
+            if tg_user.last_name:
+                name += f" {tg_user.last_name}"
+        except Exception:
+            name = "Unknown"
         balance = await db.get_balance(user_id)
         owned_doc = await db.syd.find_one({"_id": user_id})
         owned_ids = owned_doc.get("accounts", []) if owned_doc else []
-        report_lines.append(f"User: {user_id} | Balance: ${balance:.2f} | Owns: {owned_ids or 'None'}")
+        report_lines.append(f"User: {user_id} ({name}) | Balance: ${balance:.2f} | Owns: {owned_ids or 'None'}")
 
     report_lines.append("\n--- Unassigned Accounts in Database ---")
     all_accounts = await db.col.find({}).to_list(length=None)
