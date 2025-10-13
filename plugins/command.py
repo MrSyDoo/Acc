@@ -405,10 +405,10 @@ async def get_account_age(tele_client):
         if not messages: return "Unknown (No reply)"
 
         reply_text = messages[0].text
-        age_match = re.search(r"Account Age: (.+)", reply_text)
+        age_match = re.search(r"Account Age:\s*(.+)", reply_text, re.IGNORECASE)
         if age_match: return age_match.group(1).strip()
         
-        created_match = re.search(r"Created: (.+)", reply_text)
+        created_match = re.search(r"Created:\s*(.+)", reply_text, re.IGNORECASE)
         if created_match: return f"Since {created_match.group(1).strip()}"
             
         return f"Unknown (Format changed) \n<code>{reply_text} </code>"
