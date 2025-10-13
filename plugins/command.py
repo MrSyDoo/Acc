@@ -423,7 +423,7 @@ async def check_valid_session(doc):
                 
                 tdesk = TDesktop(extract_path)
                 if not tdesk.isLoaded(): return None, "Corrupted TData"
-                tele_client = await tdesk.ToTelethon(session=StringSession(), flag=UseCurrentSession)
+                tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
         else:
             return None, "No session data found"
 
