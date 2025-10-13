@@ -783,8 +783,8 @@ async def retrieve_options(client, callback_query):
 
         await callback_query.message.edit("⏳ Loading session from TData...")
 
-        valid, me, session = await check_valid_session(
-            doc, callback_query.message
+        session, valid = await check_valid_session(
+            doc
         )
         
         tele_client = session
