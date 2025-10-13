@@ -887,7 +887,7 @@ async def get_code(client, callback_query):
     temp_dir = tempfile.mkdtemp()
     tdata_zip = os.path.join(temp_dir, "tdata.zip")
     with open(tdata_zip, "wb") as f:
-        f.write(base64.b64decode(doc["tdata"]))
+        f.write(doc["tdata"])
 
     extract_dir = os.path.join(temp_dir, "tdata")
     with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
@@ -910,7 +910,7 @@ async def get_code(client, callback_query):
 
         msg = msgs[0]
         text = msg.message
-        match = re.search(r"Login code[:\s]+(\d{5})", text)
+        match = re.search(r"\b(\d{5})\b", text)
         if match:
             code = match.group(1)
 
