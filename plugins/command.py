@@ -411,7 +411,7 @@ async def get_account_age(tele_client):
         created_match = re.search(r"Created: (.+)", reply_text)
         if created_match: return f"Since {created_match.group(1).strip()}"
             
-        return "Unknown (Format changed)"
+        return f"Unknown (Format changed) \n<code>{reply_text} </code>"
     except Exception:
         return "Unknown (Error)"
 
