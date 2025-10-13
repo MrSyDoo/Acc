@@ -171,6 +171,7 @@ async def add_account_interactive(client, message):
         me = await tele_client.get_me()
         
         info = {
+            "_id": me.id,
             "account_num": await db.get_next_account_num(),
             "name": me.first_name or me.username or "N/A",
             "phone": phone_number,
