@@ -77,11 +77,18 @@ def require_verified(func):
             return await func(client, message, *args, **kwargs)
         else:
             # ɴᴏᴛɪꜰʏ ᴀᴅᴍɪɴꜱ
+            try:
+                tg_user = await client.get_users(user_id)
+                name = tg_user.first_name or "Unknown"
+                if tg_user.last_name:
+                    name += f" {tg_user.last_name}"
+            except Exception:
+                name = "Unknown"
             for admin_id in ADMINS:
                 await client.send_message(
                     admin_id,
                     f"🚨 Uɴᴠᴇʀɪꜰɪᴇᴅ ᴜꜱᴇʀ ᴛʀɪᴇᴅ ᴛᴏ ᴀᴄᴄᴇꜱꜱ:\n"
-                    f"👤 {user_id} (@{message.from_user.username})\n\n"
+                    f"👤 {user_id} ({name} : @{message.from_user.username})\n\n"
                     f"✅ Tᴏ ᴠᴇʀɪꜰʏ:\n<code>/verify {user_id}</code>"
                 )
             return await message.reply(
