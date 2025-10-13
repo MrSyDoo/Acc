@@ -96,8 +96,11 @@ async def stats_command(client, message):
     else:
         text += "**Owned Accounts:** None"
         
-    await message.reply(text, parse_mode=ParseMode.MARKDOWN)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Tᴏᴩ-Uᴩ", callback_data="topup")]
+    ])
 
+    await message.reply(text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard)
 @Client.on_message(filters.command("pay") & filters.user(ADMINS))
 async def pay_command(client, message):
     try:
@@ -435,6 +438,20 @@ async def add_to_section_cb(client, cb):
     await cb.message.edit(text, parse_mode=ParseMode.MARKDOWN)
     client.pending_stock_add = None
 
+
+@Client.on_callback_query(filters.regex(r"^topup"))
+async def handle_guide_cb(client, cb):
+   
+    text = (
+        "💰 **Top-up Guide**\n\n"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("ᴩᴀʏ", url="t.me/vizean")]
+    ])
+
+    await cb.message.edit_text(text, reply_markup=keyboard)
+    await cb.answer()
+    
 @Client.on_callback_query(filters.regex(r"^stockadmin_") & filters.user(ADMINS))
 async def stock_admin_handler(client, cb):
     action = cb.data.split("_", 1)[1]
