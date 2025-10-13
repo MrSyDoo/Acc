@@ -70,7 +70,7 @@ async def check_age_command(client, message):
 
         age = await get_account_age(tele_client)
         
-        await db.update_account_field(acc_num, "age", age)
+        await db.reset_field(doc["_id"], "age", age)
         
         await status_msg.edit(f"✅ Account `#{acc_num}` Age: **{age}**\n\n(Database has been updated).")
     
