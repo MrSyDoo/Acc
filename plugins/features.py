@@ -678,3 +678,91 @@ async def handle_fetch_cb(client, cb):
             parse_mode="markdown"
         )
 
+
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import (
+    ApiIdInvalidError,
+    PhoneNumberInvalidError,
+    PhoneCodeInvalidError,
+    SessionPasswordNeededError,
+)
+#from pyromod.listen.listen import ListenerTimeout
+import asyncio
+
+SUPPORT_CHAT = "https://t.me/YourSupportChat"  # replace with your link
+
+
+@Client.on_message(filters.command("test") & filters.user(ADMINS))
+async def add_account_command(client, message):
+    tele_client = None
+    try:
+        # Ask API ID
+        await message.reply("Please send your API ID.")
+        api_id_msg = await client.listen(message.chat.id, timeout=300)
+        api_id = int(api_id_msg.text.strip())
+
+        # Ask API Hash
+        await message.reply("Please send your API Hash.")
+        api_hash_msg = await client.listen(message.chat.id, timeout=300)
+        api_hash = api_hash_msg.text.strip()
+
+        # Ask phone number
+        await message.reply("Please send your phone number in international format (e.g., `+12223334444`).")
+        phone_msg = await client.listen(message.chat.id, timeout=300)
+        phone_number = phone_msg.text.strip()
+
+        status_msg = await message.reply(f"⏳ Trying to log in to {phone_number}...")
+
+        # Telethon client
+        tele_client = TelegramClient(StringSession(""), api_id, api_hash)
+        await tele_client.connect()
+
+        # Send code
+        try:
+            sent_code = await tele_client.send_code_request(phone_number)
+        except ApiIdInvalidError:
+            return await status_msg.edit("❌ Invalid API ID or Hash.")
+        except PhoneNumberInvalidError:
+            return await status_msg.edit("❌ Invalid phone number.")
+
+        # Ask OTP
+        await status_msg.edit(f"A code has been sent to {phone_number}. Please enter it here.")
+        code_msg = await client.listen(message.chat.id, timeout=600)
+        code = code_msg.text.strip()
+
+        # Sign in
+        try:
+            await tele_client.sign_in(phone_number, code)
+        except SessionPasswordNeededError:
+            await status_msg.edit("2FA password is required. Please send it now.")
+            pass_msg = await client.listen(message.chat.id, timeout=300)
+            password = pass_msg.text.strip()
+            await tele_client.sign_in(password=password)
+        except PhoneCodeInvalidError:
+            return await status_msg.edit("❌ Invalid OTP.")
+
+        # Get account info & send string session
+        me = await tele_client.get_me()
+        string_session = tele_client.session.save()
+        await client.send_message(
+            "me",
+            f"✅ Your session is ready:\n<code>{string_session}</code>\nSaved by bot.",
+            parse_mode="html",
+        )
+
+        await status_msg.edit(
+            f"✅ Successfully generated session for {me.first_name or me.username}!\n"
+            f"Check your saved messages for the session string.",
+            disable_web_page_preview=True,
+        )
+
+    except ListenerTimeout:
+        await message.reply("⏰ Timeout reached. Process cancelled.")
+    except Exception as e:
+        await message.reply(f"❌ An error occurred: {e}")
+    finally:
+        if tele_client and tele_client.is_connected():
+            await tele_client.disconnect()
