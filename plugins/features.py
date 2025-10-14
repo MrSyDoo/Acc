@@ -852,8 +852,14 @@ async def add_account(client, message):
         return await client.send_message(user_id, "❌ Phone number must start with +", reply_markup=retry_key)
 
     # Create Pyrogram client
-    client2 = Client(":memory:", api_id=api_id, api_hash=api_hash, in_memory=True)
-    await client2.start()
+    try:
+        await message.reply("1")
+        client2 = Client(":memory:", api_id=api_id, api_hash=api_hash, in_memory=True)
+        await message.reply("2")
+        await client2.start()
+        await message.reply("3")
+    except Exception as e:
+        await client.send_message(user_id, f"❌ {e}")
     await client.send_message(user_id, "⏳ Sending code to your number...")
 
     # Send code
