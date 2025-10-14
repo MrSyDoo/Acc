@@ -152,8 +152,11 @@ async def add_account_interactive(client, message):
         
         tele_client = TelegramClient(StringSession(), api_id, api_hash)
         await status_msg.edit("Trying To Connect ")
-        await tele_client.connect()
-        
+        try:
+            await tele_client.connect()
+        except Exception as e:
+            await status_msg.edit(f"❌ Connection failed: {e}")
+            return
         await tele_client.send_code_request(phone_number)
         
         ask_code = await status_msg.edit("A code has been sent. Please send it here.")
