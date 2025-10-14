@@ -399,16 +399,21 @@ db = Database(Config.DB_URL, Config.DB_NAME)
 # NEW HELPER FUNCTIONS
 # =====================================================================================
 
-def get_country_from_phone(phone_number: str):
-    try:
-        # Import the library here to keep it self-contained
-        import phonenumbers
-        from phonenumbers import geocoder
-        parsed_num = phonenumbers.parse(phone_number)
-        return phonenumbers.region_code_for_number(parsed_num)
-    except:
-        return "N/A."
+import phonenumbers
+from phonenumbers import geocoder, NumberParseException
 
+def get_country_name_from_phone(phone_number: str) -> str:
+    """
+    Returns the country name from a phone number.
+    Example: +14155552671 -> 'United States'
+    """
+    try:
+        parsed = phonenumbers.parse(phone_number)
+        country_name = geocoder.description_for_number(parsed, "en")
+        return country_name if country_name else "N/A"
+    except NumberParseException:
+        return "N/A"
+        
 async def get_account_age(tele_client):
     try:
         await tele_client.send_message('@tgdnabot', '/start')
@@ -593,7 +598,7 @@ async def handle_guide_cb(client, cb):
                     await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{offset} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
                     continue
                 me = await tele_client.get_me()
-                await message.reply(get_country_from_phone(me.phone))
+                await message.reply(get_country_name_from_phone(f"+{me.phone}"))
                 await sy.edit(f"• Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
                 syd = await check_2fa(tele_client)
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
