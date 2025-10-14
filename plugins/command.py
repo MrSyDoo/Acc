@@ -355,8 +355,8 @@ class Database:
         cursor = self.col.find({}, {"_id": 0, "account_num": 1, "name": 1, "phone": 1, "by": 1})
         return [doc async for doc in cursor]
 
-    async def remove_stock_item(self, acc_num: int, section: str):
-        result = await self.stock.delete_one({"account_num": acc_num, "section": section})
+    async def remove_stock_item(self, acc_num: int):
+        result = await self.stock.delete_many({"account_num": acc_num})
         return result.deleted_count > 0
 
 
