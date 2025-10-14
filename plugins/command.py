@@ -594,7 +594,6 @@ async def handle_guide_cb(client, cb):
                     await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{offset} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
                     continue
                 me = await tele_client.get_me()
-                await message.reply(get_country_from_phone(f"+{me.phone}"))
                 await sy.edit(f"• Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
                 syd = await check_2fa(tele_client)
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
