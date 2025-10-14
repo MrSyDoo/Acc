@@ -460,7 +460,19 @@ async def add_to_stock_command(client, message):
         parts = message.command
         if len(parts) < 3: 
             return await message.reply("Usage: `/add <price> <ID1> <ID2>...`", parse_mode=ParseMode.MARKDOWN)
-        price, acc_nums = float(parts[1]), [int(p) for p in parts[2:]]
+        
+        price = float(parts[1])
+        acc_nums = []
+        
+        for p in parts[2:]:
+            if "-" in p:
+                start, end = map(int, p.split("-", 1))
+                acc_nums.extend(range(start, end + 1))
+            else:
+                acc_nums.append(int(p))
+
+        
+        acc_nums = list(set(acc_nums))
         
         valid_accs, invalid_accs = await db.validate_accounts_for_stock(acc_nums)
         if invalid_accs: await message.reply(f"⚠️ Cannot add: `{', '.join(map(str, invalid_accs))}` (non-existent or owned).", parse_mode=ParseMode.MARKDOWN)
