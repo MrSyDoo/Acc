@@ -565,3 +565,87 @@ async def stock_admin_handler(client, cb):
     
     elif action == "cancel":
         await cb.message.delete()
+
+
+
+
+    from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+@Client.on_message(filters.command("fetch") & filters.user(ADMINS))
+async def fetch_account(client, message):
+    parts = message.command
+    if len(parts) < 2:
+        return await message.reply("Usage: `/fetch <account_id>`", parse_mode="markdown")
+
+    try:
+        acc_num = int(parts[1])
+    except ValueError:
+        return await message.reply("❌ Invalid account ID.")
+
+    # Find who owns this account
+    owned = await db.syd.find_one({"accounts": acc_num})
+    if not owned:
+        return await message.reply("❌ This account isn’t owned by anyone.")
+
+    user_id = owned["_id"]
+    user_name = owned.get("name", "Unknown")
+
+    # Ask for confirmation
+    text = (
+        f"⚠️ Are you sure you want to take back account **{acc_num}** "
+        f"from **{user_name}** (`{user_id}`)?"
+    )
+    buttons = [
+        [
+            InlineKeyboardButton("📦 Retrieve", callback_data=f"fetch_retrieve_{acc_num}_{user_id}"),
+            InlineKeyboardButton("💸 Retrieve + Cashback", callback_data=f"fetch_cashback_{acc_num}_{user_id}")
+        ],
+        [InlineKeyboardButton("❌ Cancel", callback_data="fetch_cancel")]
+    ]
+    await message.reply(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode="markdown")
+
+
+@Client.on_callback_query(filters.regex(r"^fetch_"))
+async def handle_fetch_cb(client, cb):
+    data = cb.data.split("_")
+    action = data[1]
+
+    if action == "cancel":
+        return await cb.message.edit_text("❌ Operation cancelled.")
+
+    acc_num = int(data[2])
+    user_id = int(data[3])
+
+    owned = await db.syd.find_one({"_id": user_id, "accounts": acc_num})
+    if not owned:
+        return await cb.message.edit_text("❌ This user doesn’t own that account anymore.")
+
+    await db.syd.update_one({"_id": user_id}, {"$pull": {"accounts": acc_num}})
+
+    acc_doc = await db.col.find_one({"account_num": acc_num})
+    if not acc_doc:
+        return await cb.message.edit_text("⚠️ Account data not found in records.")
+
+    if action == "cashback":
+        price = acc_doc.get("price", 0)
+        await db.update_balance(user_id, price)
+        await cb.message.edit_text(
+            f"Retrieved account `{acc_num}` from user `{user_id}` and refunded **${price:.2f}**. ✅",
+            parse_mode="markdown"
+        )
+        try:
+            await client.send_message(
+                user_id,
+                f"💸 Your account **({acc_num})** has been retrieved by admin.\n"
+                f"The amount you spent (**${price:.2f}**) has been credited back to your balance.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception:
+            pass
+    else:
+        await cb.message.edit_text(
+            f"Retrieved account `{acc_num}` from user `{user_id}`. ✅",
+            parse_mode="markdown"
+        )
+
