@@ -355,6 +355,11 @@ class Database:
         cursor = self.col.find({}, {"_id": 0, "account_num": 1, "name": 1, "phone": 1, "by": 1})
         return [doc async for doc in cursor]
 
+    async def remove_stock_item(self, acc_num: int, section: str):
+        result = await self.stock.delete_one({"account_num": acc_num, "section": section})
+        return result.deleted_count > 0
+
+
     # --- Stock & Section Management ---
     async def add_stock_item(self, price: float, acc_num: int, section: str):
         exists = await self.stock.find_one({"account_num": acc_num, "section": section})
