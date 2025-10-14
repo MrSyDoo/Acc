@@ -808,7 +808,7 @@ async def add_account(client, message):
     # API ID
     try:
         api_id_msg = await client.ask(
-            identifier=(message.chat.id, user_id, None),
+            chat_id=message.chat.id,
             text="» Please enter your API ID:",
             filters=filters.text,
             timeout=300,
@@ -824,7 +824,7 @@ async def add_account(client, message):
     # API Hash
     try:
         api_hash_msg = await client.ask(
-            identifier=(message.chat.id, user_id, None),
+            chat_id=message.chat.id,
             text="» Please enter your API Hash:",
             filters=filters.text,
             timeout=300,
@@ -839,7 +839,7 @@ async def add_account(client, message):
     # Phone number
     try:
         phone_msg = await client.ask(
-            identifier=(message.chat.id, user_id, None),
+            chat_id=message.chat.id,
             text="» Please enter your phone number (with +):",
             filters=filters.text,
             timeout=300,
@@ -867,7 +867,7 @@ async def add_account(client, message):
     # Ask OTP
     try:
         otp_msg = await client.ask(
-            identifier=(message.chat.id, user_id, None),
+            chat_id=message.chat.id,
             text=f"» Enter the OTP sent to {phone_number}:",
             filters=filters.text,
             timeout=600,
@@ -882,7 +882,7 @@ async def add_account(client, message):
         await client2.sign_in(phone_number, sent_code.phone_code_hash, otp)
     except SessionPasswordNeeded:
         pwd_msg = await client.ask(
-            identifier=(message.chat.id, user_id, None),
+            chat_id=message.chat.id,
             text="» Enter your 2FA password:",
             filters=filters.text,
             timeout=300,
