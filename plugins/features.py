@@ -376,8 +376,13 @@ async def proceed_buy_cb(client, cb):
         )
         if not session: 
             await callback_query.answer("This account is invalid, sorry for the inconvenience, please purchase a different account, this one will be removed from stocks.", show_alert=True)
+            syd = await db.remove_stock_item(acc_num)
+            if syd:
+                ext = "and removed from stocks"
+            else:
+                ext = "and tried to remove from stock but failed"
             for admin in ADMINS:
-                await client.send_message(admin, f"🚨 **New Sale!** 🚨\nUser: {cb.from_user.mention} (`{user_id}`)\nAccount: `#{acc_num}`\nPrice: `${price:.2f}`\nUser's New Balance: `${new_balance:.2f}`", parse_mode=ParseMode.MARKDOWN)
+                await client.send_message(admin, f"The account: ID {acc_num} \nUser ID: {user_id} \nNumber: {acc_num} \nIs invalid {ext}", parse_mode=ParseMode.MARKDOWN)
             return
         await db.update_balance(user_id, -price)
         success, msg = await db.grant_account(user_id, acc_num)
