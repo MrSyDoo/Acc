@@ -256,49 +256,42 @@ async def backup_db_command(client, message):
 
 
 
-# Keep track of each user's active stock message
+
+
 active_stock_messages = {}
 
 @Client.on_message(filters.command("stock"))
 async def stock_command(client, message):
     user_id = message.from_user.id
 
-    # Delete old stock message if exists
     if user_id in active_stock_messages:
-        try:
-            old_msg = active_stock_messages[user_id]
-            await old_msg.delete()
-        except Exception:
-            pass  
+        try: await active_stock_messages[user_id]["msg"].delete()
+        except: pass
         del active_stock_messages[user_id]
 
-   
     sections = await db.get_stock_sections()
     if not sections:
         return await message.reply("😔 Sorry, there are no stock sections created yet.")
-    buttons = []
-    for section in sections:
-        count = await db.count_stock_in_section(section)
-        buttons.append(
-            InlineKeyboardButton(f"{section} ({count} IDs)", callback_data=f"view_stock_0_{section}")
-        )
+
+    buttons = [
+        InlineKeyboardButton(f"{s} ({await db.count_stock_in_section(s)} IDs)", callback_data=f"view_stock_0_{s}")
+        for s in sections
+    ]
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
-    stock_msg = await message.reply(
-        "**🛒 Account Stock**\n\nPlease choose a category:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    stock_msg = await message.reply("**🛒 Account Stock**\n\nPlease choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
+    active_stock_messages[user_id] = {"msg": stock_msg, "task": None}
 
-    active_stock_messages[user_id] = stock_msg
     async def auto_delete():
         await asyncio.sleep(300)
-        try:
-            await stock_msg.delete()
-        except Exception:
-            pass
-        active_stock_messages.pop(user_id, None)
+        if user_id in active_stock_messages and active_stock_messages[user_id]["msg"].id == stock_msg.id:
+           # try: await stock_msg.delete()
+          #  except: pass
+            active_stock_messages.pop(user_id, None)
 
-    asyncio.create_task(auto_delete())
+    active_stock_messages[user_id]["task"] = asyncio.create_task(auto_delete())
+
+
 
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
 async def view_stock_section_cb(client, cb):
@@ -308,6 +301,10 @@ async def view_stock_section_cb(client, cb):
     except:
         pass # Ignore errors if we can't answer the query (e.g., already answered)
 
+    uid, mid = cb.from_user.id, cb.message.id
+    if uid not in active_stock_messages or active_stock_messages[uid]["msg"].id != mid:
+        return await cb.answer("Old Message, Start New One!.", show_alert=True)
+    
     try:
         # Extract data from callback query
         page = int(cb.matches[0].group(1))
@@ -370,6 +367,10 @@ async def view_stock_section_cb(client, cb):
 
 @Client.on_callback_query(filters.regex(r"^confirm_buy_(\d+)"))
 async def confirm_buy_cb(client, cb):
+    uid, mid = cb.from_user.id, cb.message.id
+    if uid not in active_stock_messages or active_stock_messages[uid]["msg"].id != mid:
+        return await cb.answer("Old Message, Start New One..!", show_alert=True)
+    
     acc_num = int(cb.matches[0].group(1))
     user_id = cb.from_user.id
     stock_item = await db.get_stock_item_by_acc_num(acc_num)
@@ -387,6 +388,10 @@ async def confirm_buy_cb(client, cb):
 
 @Client.on_callback_query(filters.regex(r"^proceed_buy_(\d+)"))
 async def proceed_buy_cb(client, cb):
+    uid, mid = cb.from_user.id, cb.message.id
+    if uid not in active_stock_messages or active_stock_messages[uid]["msg"].id != mid:
+        return await cb.answer("Old Message, Start New One..!", show_alert=True)
+    
     acc_num = int(cb.matches[0].group(1))
     user_id = cb.from_user.id
     if not await db.lock_user(user_id):
@@ -432,6 +437,10 @@ async def proceed_buy_cb(client, cb):
 
 @Client.on_callback_query(filters.regex(r"^back_to_stock_main"))
 async def back_to_stock_main_cb(client, cb):
+    uid, mid = cb.from_user.id, cb.message.id
+    if uid not in active_stock_messages or active_stock_messages[uid]["msg"].id != mid:
+        return await cb.answer("Old Message, Start New One..!", show_alert=True)
+    
     await cb.answer()
     await stock_command(client, cb.message)
 
