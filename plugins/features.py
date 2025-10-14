@@ -431,7 +431,7 @@ async def proceed_buy_cb(client, cb):
         await cb.message.edit(f"✅ **Purchase Successful!**\nYou now own account `#{acc_num}`.\nUse `/retrieve {acc_num}` to access it.", parse_mode=ParseMode.MARKDOWN)
         new_balance = await db.get_balance(user_id)
         for admin in ADMINS:
-            await client.send_message(admin, f"🚨 **New Sale!** 🚨\nUser: {cb.from_user.mention} (`{user_id}`)\nAccount: `#{acc_num}`\nPrice: `${price:.2f}`\nUser's New Balance: `${new_balance:.2f}`", parse_mode=ParseMode.MARKDOWN)
+            await client.send_message(admin, f"🚨 <b>New Sale!</b> 🚨\nUser: {cb.from_user.mention} (<code>{user_id}</code>)\nAccount: <code>#{acc_num}</code>\nPrice: <code>${price:.2f}</code>\nUser's New Balance: <code>${new_balance:.2f}</code>", parse_mode=ParseMode.HTML)
     finally:
         await db.unlock_user(user_id)
 
