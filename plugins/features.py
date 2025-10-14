@@ -101,6 +101,7 @@ async def stats_command(client, message):
     ])
 
     await message.reply(text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard)
+    
 @Client.on_message(filters.command("pay") & filters.user(ADMINS))
 async def pay_command(client, message):
     try:
@@ -253,20 +254,51 @@ async def backup_db_command(client, message):
 # USER-FACING STOCK COMMANDS
 # =====================================================================================
 
+
+
+# Keep track of each user's active stock message
+active_stock_messages = {}
+
 @Client.on_message(filters.command("stock"))
 async def stock_command(client, message):
+    user_id = message.from_user.id
+
+    # Delete old stock message if exists
+    if user_id in active_stock_messages:
+        try:
+            old_msg = active_stock_messages[user_id]
+            await old_msg.delete()
+        except Exception:
+            pass  
+        del active_stock_messages[user_id]
+
+   
     sections = await db.get_stock_sections()
     if not sections:
         return await message.reply("😔 Sorry, there are no stock sections created yet.")
-
     buttons = []
     for section in sections:
         count = await db.count_stock_in_section(section)
-        buttons.append(InlineKeyboardButton(f"{section} ({count} IDs)", callback_data=f"view_stock_0_{section}"))
-
+        buttons.append(
+            InlineKeyboardButton(f"{section} ({count} IDs)", callback_data=f"view_stock_0_{section}")
+        )
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
-    await message.reply("**🛒 Account Stock**\n\nPlease choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+    stock_msg = await message.reply(
+        "**🛒 Account Stock**\n\nPlease choose a category:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    active_stock_messages[user_id] = stock_msg
+    async def auto_delete():
+        await asyncio.sleep(300)
+        try:
+            await stock_msg.delete()
+        except Exception:
+            pass
+        active_stock_messages.pop(user_id, None)
+
+    asyncio.create_task(auto_delete())
 
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
 async def view_stock_section_cb(client, cb):
