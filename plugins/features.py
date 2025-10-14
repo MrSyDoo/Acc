@@ -576,7 +576,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 async def fetch_account(client, message):
     parts = message.command
     if len(parts) < 2:
-        return await message.reply("Usage: `/fetch <account_id>`", parse_mode="markdown")
+        return await message.reply("Usage: `/fetch <account_id>`", parse_mode=ParseMode.MARKDOWN)
 
     try:
         acc_num = int(parts[1])
