@@ -603,7 +603,7 @@ async def fetch_account(client, message):
         ],
         [InlineKeyboardButton("❌ Cancel", callback_data="fetch_cancel")]
     ]
-    await message.reply(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode="markdown")
+    await message.reply(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=ParseMode.MARKDOWN)
 
 
 @Client.on_callback_query(filters.regex(r"^fetch_"))
@@ -632,7 +632,7 @@ async def handle_fetch_cb(client, cb):
         await db.update_balance(user_id, price)
         await cb.message.edit_text(
             f"Retrieved account `{acc_num}` from user `{user_id}` and refunded **${price:.2f}**. ✅",
-            parse_mode="markdown"
+            parse_mode=ParseMode.MARKDOWN
         )
         try:
             await client.send_message(
