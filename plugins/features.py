@@ -154,6 +154,7 @@ async def add_account_interactive(client, message):
         await status_msg.edit("Trying To Connect ")
         try:
             await tele_client.connect()
+            await status_msg.edit("Connected ✅")
         except Exception as e:
             await status_msg.edit(f"❌ Connection failed: {e}")
             return
