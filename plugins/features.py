@@ -465,7 +465,9 @@ async def add_to_stock_command(client, message):
         valid_accs, invalid_accs = await db.validate_accounts_for_stock(acc_nums)
         if invalid_accs: await message.reply(f"⚠️ Cannot add: `{', '.join(map(str, invalid_accs))}` (non-existent or owned).", parse_mode=ParseMode.MARKDOWN)
         if not valid_accs: return await message.reply("❌ No valid accounts to add.")
-        
+        for acc in valid_accs:
+            await db.col.update_one({"account_num": acc}, {"$set": {"price": price}}, upsert=True)
+
         sections = await db.get_stock_sections()
         buttons = [[InlineKeyboardButton(s, callback_data=f"add_to_sec_{s}")] for s in sections]
         buttons.append([InlineKeyboardButton("➕ Create New Section", callback_data="add_to_sec_new")])
