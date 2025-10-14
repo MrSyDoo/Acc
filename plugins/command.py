@@ -402,7 +402,7 @@ db = Database(Config.DB_URL, Config.DB_NAME)
 import phonenumbers
 from phonenumbers import geocoder, NumberParseException
 
-def get_country_name_from_phone(phone_number: str) -> str:
+def get_country_from_phone(phone_number: str) -> str:
     """
     Returns the country name from a phone number.
     Example: +14155552671 -> 'United States'
@@ -598,7 +598,7 @@ async def handle_guide_cb(client, cb):
                     await message.reply(f"⚠️ ᴛᴅᴀᴛᴀ #{offset} ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ")
                     continue
                 me = await tele_client.get_me()
-                await message.reply(get_country_name_from_phone(f"+{me.phone}"))
+                await message.reply(get_country_from_phone(f"+{me.phone}"))
                 await sy.edit(f"• Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
                 syd = await check_2fa(tele_client)
                 clean_zip_path = os.path.join(tempfile.gettempdir(), f"{me.id}_tdata.zip")
@@ -625,7 +625,7 @@ async def handle_guide_cb(client, cb):
                 info = {
                     "name": me.first_name or "?",
                     "phone": me.phone or "?",
-                    "country": get_country_from_phone(me.phone),
+                    "country": get_country_from_phone(f"+{me.phone}"),
                     "twofa": syd,
                     "age": age,
                     "spam": getattr(me, "restricted", False),
