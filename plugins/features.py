@@ -295,16 +295,15 @@ async def stock_command(client, message):
 
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
 async def view_stock_section_cb(client, cb):
-    # Always acknowledge the callback query first, even if an error occurs later
+    
+    uid, mid = cb.from_user.id, cb.message.id
+    if uid not in active_stock_messages or active_stock_messages[uid]["msg"].id != mid:
+        return await cb.answer("Old Message, Start New One!.", show_alert=True)
     try:
         await cb.answer() 
     except:
         pass # Ignore errors if we can't answer the query (e.g., already answered)
 
-    uid, mid = cb.from_user.id, cb.message.id
-    if uid not in active_stock_messages or active_stock_messages[uid]["msg"].id != mid:
-        return await cb.answer("Old Message, Start New One!.", show_alert=True)
-    
     try:
         # Extract data from callback query
         page = int(cb.matches[0].group(1))
