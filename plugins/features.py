@@ -780,9 +780,7 @@ from pyrogram.errors import (
     SessionPasswordNeeded,
 )
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from pyromod.listen import ListenerTimeout
 
-from config import SUPPORT_CHAT
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 retry_key = InlineKeyboardMarkup(
