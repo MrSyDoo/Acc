@@ -285,8 +285,8 @@ async def stock_command(client, message):
     async def auto_delete():
         await asyncio.sleep(300)
         if user_id in active_stock_messages and active_stock_messages[user_id]["msg"].id == stock_msg.id:
-           # try: await stock_msg.delete()
-          #  except: pass
+            try: await stock_msg.delete()
+            except: pass
             active_stock_messages.pop(user_id, None)
 
     active_stock_messages[user_id]["task"] = asyncio.create_task(auto_delete())
