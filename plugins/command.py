@@ -459,7 +459,7 @@ async def check_valid_session(doc):
 
 
 @Client.on_message(filters.document)
-@require_verified
+#@require_verified
 async def handle_archive(client, message):
     try:
         buttons = InlineKeyboardMarkup(
