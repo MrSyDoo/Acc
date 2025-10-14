@@ -366,7 +366,19 @@ async def proceed_buy_cb(client, cb):
         
         price, user_balance = stock_item['price'], await db.get_balance(user_id)
         if user_balance < price: return await cb.message.edit("❌ Your balance is no longer sufficient.")
-
+        
+        doc = await db.col.find_one({"account_num": acc_num})
+        if not doc:
+            return await callback_query.message.edit("❌ Account not found.")
+            
+        session, valid = await check_valid_session(
+            doc
+        )
+        if not session: 
+            await callback_query.answer("This account is invalid, sorry for the inconvenience, please purchase a different account, this one will be removed from stocks.", show_alert=True)
+            for admin in ADMINS:
+                await client.send_message(admin, f"🚨 **New Sale!** 🚨\nUser: {cb.from_user.mention} (`{user_id}`)\nAccount: `#{acc_num}`\nPrice: `${price:.2f}`\nUser's New Balance: `${new_balance:.2f}`", parse_mode=ParseMode.MARKDOWN)
+            return
         await db.update_balance(user_id, -price)
         success, msg = await db.grant_account(user_id, acc_num)
         
