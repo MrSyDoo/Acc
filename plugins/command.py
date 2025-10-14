@@ -403,16 +403,12 @@ import phonenumbers
 from phonenumbers import geocoder, NumberParseException
 
 def get_country_from_phone(phone_number: str) -> str:
-    """
-    Returns the country name from a phone number.
-    Example: +14155552671 -> 'United States'
-    """
     try:
         parsed = phonenumbers.parse(phone_number)
-        country_name = geocoder.description_for_number(parsed, "en")
-        return country_name if country_name else "N/A"
+        return phonenumbers.region_code_for_number(parsed)
     except NumberParseException:
         return "N/A"
+
         
 async def get_account_age(tele_client):
     try:
