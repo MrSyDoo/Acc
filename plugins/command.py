@@ -636,6 +636,8 @@ async def handle_guide_cb(client, cb):
                     f"#{sydno}\n"
                     f"Aᴄᴄᴏᴜɴᴛ Nᴀᴍᴇ: {info['name']}\n"
                     f"Pʜᴏɴᴇ Nᴜᴍʙᴇʀ: {info['phone']}\n"
+                    f"Cᴏᴜɴᴛʀʏ Cᴏᴅᴇ: {info['country']}\n"
+                    f"Aɢᴇ: {info['age']}\n"
                     f"{info['twofa']}\n"
                     f"Sᴘᴀᴍ Mᴜᴛᴇ: {info['spam']}\n"
                 )
