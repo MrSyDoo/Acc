@@ -430,8 +430,8 @@ async def get_account_age(tele_client):
         if created_match: return f"Since {created_match.group(1).strip()}"
             
         return f"Unknown (Format changed) \n<code>{reply_text} </code>"
-    except Exception:
-        return "Unknown (Error)"
+    except Exception as e:
+        return f"Unknown (Error {e})"
 
 async def check_valid_session(doc):
     tele_client = None
