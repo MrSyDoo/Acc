@@ -130,70 +130,72 @@ async def pay_command(client, message):
 # NEW ACQUISITION & REPORTING COMMANDS
 # =====================================================================================
 
-#@Client.on_message(filters.command("addacc") & filters.user(ADMINS))
+from pyrogram import Client, filters
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import (
+    SessionPasswordNeededError,
+    PhoneCodeInvalidError,
+    AuthKeyUnregisteredError,
+)
+from pyromod.exceptions import ListenerTimeout
+from config import ADMINS, ParseMode
+from utils import db, get_country_from_phone, get_account_age, check_2fa
+
+@Client.on_message(filters.command("addacc") & filters.user(ADMINS))
 async def add_account_interactive(client, message):
     tele_client = None
     try:
-        api_idd = await message.reply("Please send your api id", parse_mode=ParseMode.MARKDOWN)
-        api_id_mess = await client.listen(message.chat.id, timeout=300)
-        api_id = int(api_id_mess.text.strip())
-        await api_idd.delete()
-        await message.reply(api_id)
-        api_has = await message.reply("Please send your api hash", parse_mode=ParseMode.MARKDOWN)
-        api_hash_mess = await client.listen(message.chat.id, timeout=300)
-        api_hash = api_hash_mess.text.strip()
-        await api_has.delete()
-        ask_phone = await message.reply("Please send the phone number in international format (e.g., `+12223334444`).", parse_mode=ParseMode.MARKDOWN)
-        phone_msg = await client.listen(message.chat.id, timeout=300)
-        phone_number = phone_msg.text.strip()
-        
-        await ask_phone.delete()
-        status_msg = await message.reply(f"⏳ Trying to log in to `{phone_number}`...", parse_mode=ParseMode.MARKDOWN)
-        
-        tele_client = TelegramClient(StringSession(), api_id, api_hash)
-        await status_msg.edit("Trying To Connect ")
+        # Ask for session string
+        ask_sess = await message.reply(
+            "Please send the **Telethon session string** for the account.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        sess_msg = await client.listen(message.chat.id, timeout=300)
+        session_str = sess_msg.text.strip()
+        await ask_sess.delete()
+
+        status_msg = await message.reply("⏳ Connecting to the account...", parse_mode=ParseMode.MARKDOWN)
+
+        # Try connecting
+        tele_client = TelegramClient(StringSession(session_str), 6, "eb06d4abfb49dc3eeb1aeb98ae0f581e")  # Default values for checking
         try:
             await tele_client.connect()
-            await status_msg.edit("Connected ✅")
         except Exception as e:
-            await status_msg.edit(f"❌ Connection failed: {e}")
+            await status_msg.edit(f"❌ Failed to connect: `{e}`", parse_mode=ParseMode.MARKDOWN)
             return
-        await tele_client.send_code_request(phone_number)
-        
-        ask_code = await status_msg.edit("A code has been sent. Please send it here.")
-        code_msg = await client.listen(message.chat.id, timeout=300)
-        code = code_msg.text.strip()
-        
-        try:
-            await tele_client.sign_in(phone_number, code)
-        except SessionPasswordNeededError:
-            await ask_code.delete()
-            ask_pass = await status_msg.edit("2FA password is required. Please send it now.")
-            pass_msg = await client.listen(message.chat.id, timeout=300)
-            password = pass_msg.text.strip()
-            await tele_client.sign_in(password=password)
 
-        me = await tele_client.get_me()
-        
+        # Validate session
+        try:
+            me = await tele_client.get_me()
+        except AuthKeyUnregisteredError:
+            await status_msg.edit("❌ Invalid session string. It seems expired or incorrect.")
+            return
+
+        # Gather info
+        phone = me.phone or "Unknown"
         info = {
             "_id": me.id,
             "account_num": await db.get_next_account_num(),
             "name": me.first_name or me.username or "N/A",
-            "phone": phone_number,
-            "country": get_country_from_phone(phone_number),
+            "phone": phone,
+            "country": get_country_from_phone(phone) if phone != "Unknown" else "Unknown",
             "age": await get_account_age(tele_client),
             "twofa": await check_2fa(tele_client),
-            "session_string": tele_client.session.save(),
+            "session_string": session_str,
             "by": f"{message.from_user.first_name}({message.from_user.id})"
         }
-        
+
         acc_num = await db.save_account(me.id, info)
-        await status_msg.edit(f"✅ Account `#{acc_num}` (`{info['name']}`) added successfully!", parse_mode=ParseMode.MARKDOWN)
+        await status_msg.edit(
+            f"✅ Account `#{acc_num}` (`{info['name']}`) added successfully!",
+            parse_mode=ParseMode.MARKDOWN
+        )
 
     except ListenerTimeout:
         await message.reply("⏰ Timeout. Process cancelled.")
     except Exception as e:
-        await message.reply(f"❌ An error occurred: `{e}`", parse_mode=ParseMode.MARKDOWN)
+        await message.reply(f"❌ Error: `{e}`", parse_mode=ParseMode.MARKDOWN)
     finally:
         if tele_client and tele_client.is_connected():
             await tele_client.disconnect()
