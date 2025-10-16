@@ -813,6 +813,7 @@ async def retrieve_options(client, callback_query):
             await callback_query.message.edit("⚙️ Generating Telethon session...")
 
             # use .session.save() or StringSession.save()
+            me = await tele_client.get_me()
             tele_string = StringSession.save(session.session)
 
             await client.send_message(
