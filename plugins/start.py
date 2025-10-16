@@ -218,98 +218,156 @@ async def send_msg(user_id, message):
         print(f"{user_id} : {e}")
         return 500
 
-
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from datetime import datetime, timezone
-try:
-    from zoneinfo import ZoneInfo
-    IST = ZoneInfo("Asia/Kolkata")
-except Exception:
-    IST = None
+from datetime import datetime, timedelta, timezone
+import re
+import json
+import os
+
+# Path to store learned anchors persistently
+ANCHORS_FILE = "anchors.json"
+
+# Default known anchors (base calibration)
+DEFAULT_ANCHORS = [
+    (100_000_000, datetime(2015, 1, 1)),
+    (500_000_000, datetime(2017, 12, 1)),
+    (1_000_000_000, datetime(2019, 10, 1)),
+    (1_500_000_000, datetime(2020, 10, 1)),
+    (2_000_000_000, datetime(2021, 5, 1)),
+    (3_000_000_000, datetime(2022, 5, 1)),
+    (4_000_000_000, datetime(2023, 4, 1)),
+    (6_000_000_000, datetime(2024, 4, 1)),
+    (7_180_000_000, datetime(2024, 10, 1)),
+    (7_800_000_000, datetime(2025, 4, 1)),
+    (8_300_000_000, datetime(2025, 10, 1)),
+]
+
+ADMINS = [123456789, 987654321]  # your Telegram user IDs
 
 
-@Client.on_message(filters.command("starter"))
+def load_anchors():
+    """Load anchors from JSON file (persistent)"""
+    if os.path.exists(ANCHORS_FILE):
+        try:
+            with open(ANCHORS_FILE, "r") as f:
+                data = json.load(f)
+                return [(int(k), datetime.fromisoformat(v)) for k, v in data.items()]
+        except Exception:
+            return DEFAULT_ANCHORS
+    return DEFAULT_ANCHORS
+
+
+def save_anchors(anchors):
+    """Save anchors persistently"""
+    try:
+        with open(ANCHORS_FILE, "w") as f:
+            json.dump({str(i): dt.isoformat() for i, dt in anchors}, f, indent=2)
+    except Exception as e:
+        print(f"Error saving anchors: {e}")
+
+
+def estimate_creation_date(user_id: int, anchors: list) -> datetime:
+    """Estimate creation date via linear interpolation"""
+    anchors = sorted(anchors, key=lambda x: x[0])
+    if user_id <= anchors[0][0]:
+        id0, dt0 = anchors[0]
+        id1, dt1 = anchors[1]
+    elif user_id >= anchors[-1][0]:
+        id0, dt0 = anchors[-2]
+        id1, dt1 = anchors[-1]
+    else:
+        for i in range(len(anchors) - 1):
+            if anchors[i][0] <= user_id <= anchors[i + 1][0]:
+                id0, dt0 = anchors[i]
+                id1, dt1 = anchors[i + 1]
+                break
+
+    ratio = (user_id - id0) / (id1 - id0)
+    return dt0 + (dt1 - dt0) * ratio
+
+
+def format_age(created_dt, now=None):
+    now = now or datetime.now(timezone.utc)
+    delta = now - created_dt.replace(tzinfo=timezone.utc)
+    years = delta.days // 365
+    months = (delta.days % 365) // 30
+    days = (delta.days % 365) % 30
+    return f"{years}y {months}m {days}d"
+
+
+@Client.on_message(filters.command("starter") & ~filters.edited)
 async def starter_info(client: Client, message: Message):
     try:
-        user = message.from_user
-        if not user:
-            await message.reply("❌ Could not identify sender.")
-            return
+        # Check if admin sent "learn" style pattern like "March 2023 = 7179366895"
+        if message.from_user and message.from_user.id in ADMINS:
+            text = message.text.strip()
+            match = re.search(
+                r"(?:(\d{1,2}|[A-Za-z]+)\s+(\d{4}))\s*=\s*(\d{6,12})", text
+            )
+            if match:
+                month_part, year_part, id_part = match.groups()
+                user_id = int(id_part)
+                # Convert month name or number
+                try:
+                    if month_part.isdigit():
+                        month = int(month_part)
+                    else:
+                        month = datetime.strptime(month_part[:3], "%b").month
+                except Exception:
+                    month = 1
+                year = int(year_part)
+                new_date = datetime(year, month, 1)
+                anchors = load_anchors()
+                anchors.append((user_id, new_date))
+                save_anchors(anchors)
+                await message.reply_text(
+                    f"✅ Learned new anchor:\nID `{user_id}` → {new_date.strftime('%Y-%m-%d')}"
+                )
+                return
 
-        # Try fetching complete info
-        try:
-            user = await client.get_users(user.id)
-        except Exception:
-            pass
-
-        # Extract details safely
-        user_id = getattr(user, "id", "Unavailable")
-        first = getattr(user, "first_name", "") or ""
-        last = getattr(user, "last_name", "") or ""
-        name = (first + (" " + last if last else "")).strip() or getattr(user, "username", "Unknown")
-
-        dc = getattr(user, "dc_id", "Unavailable")
-        username = f"@{user.username}" if user.username else "None"
-        premium = "Active" if getattr(user, "is_premium", False) else "Inactive"
-        language = getattr(user, "language_code", "Unavailable")
-        photos_set = "Set" if getattr(user, "photo", None) else "Not set"
-
-        # Message time
-        msg_dt_utc = message.date.replace(tzinfo=timezone.utc)
-        dt_utc_str = msg_dt_utc.strftime("%Y-%m-%d %H:%M UTC")
-        dt_ist_str = (
-            msg_dt_utc.astimezone(IST).strftime("%Y-%m-%d %H:%M (Asia/Kolkata)")
-            if IST else "Unavailable"
+        # Normal /starter info flow
+        target = (
+            message.reply_to_message.from_user
+            if message.reply_to_message and message.reply_to_message.from_user
+            else message.from_user
         )
-
-        # Status
-        status = "Unknown"
-        try:
-            s = getattr(user, "status", None)
-            if s:
-                cname = s.__class__.__name__
-                if "Recently" in cname:
-                    status = "Recently"
-                elif "Online" in cname:
-                    status = "Online"
-                elif "Offline" in cname:
-                    ts = getattr(s, "was_online", None)
-                    status = f"Last seen: {ts.strftime('%Y-%m-%d %H:%M UTC')}" if ts else "Offline"
-                elif "LastMonth" in cname:
-                    status = "Last Month"
-                elif "LastWeek" in cname:
-                    status = "Last Week"
-        except Exception:
-            status = "Unavailable"
-
+        user = await client.get_users(target.id)
+        user_id = user.id
+        name = (user.first_name or "") + (
+            (" " + user.last_name) if user.last_name else ""
+        )
+        username = "@" + user.username if user.username else "None"
+        dc = getattr(user, "dc_id", "N/A")
+        premium = "Active" if getattr(user, "is_premium", False) else "Inactive"
+        lang = getattr(user, "language_code", "Unknown")
+        photos = "Set" if getattr(user, "photo", None) else "Not Set"
         scam = "Yes" if getattr(user, "is_scam", False) else "No"
         fake = "Yes" if getattr(user, "is_fake", False) else "No"
 
-        # Account age (unavailable via Telegram)
-        account_age = "Unavailable (creation date not provided by Telegram API)"
+        anchors = load_anchors()
+        created = estimate_creation_date(user_id, anchors)
+        created_str = created.strftime("%Y-%m-%d")
+        age = format_age(created)
 
-        # Build text
         text = (
-            "**👤 Starter Info (Real Details)**\n\n"
+            f"👤 **Starter Info (Approximate)**\n\n"
             f"**ID:** `{user_id}`\n"
-            f"**Name:** {name}\n"
+            f"**Name:** {name or 'Unknown'}\n"
             f"**DC:** {dc}\n"
-            f"**Created:** Unavailable\n"
+            f"**Created:** {created_str}\n"
             f"**Username:** {username}\n"
             f"**Premium:** {premium}\n"
-            f"**Language:** {language}\n"
-            f"**Date (UTC):** {dt_utc_str}\n"
-            f"**Date (Asia/Kolkata):** {dt_ist_str}\n"
-            f"**Photos:** {photos_set}\n"
-            f"**Status:** {status}\n"
+            f"**Language:** {lang}\n"
+            f"**Photos:** {photos}\n"
             f"**Scam Label:** {scam}\n"
             f"**Fake Label:** {fake}\n"
-            f"**Account Age:** {account_age}"
+            f"**Account Age:** {age}\n\n"
+            f"_Accuracy improves when admins teach me new anchors using patterns like:_\n"
+            f"`March 2023 = 6727173021`"
         )
-
-        await message.reply(text, quote=True)
+        await message.reply_text(text)
 
     except Exception as e:
-        await message.reply(f"⚠️ Something went wrong while fetching details. {e}")
-        print(f"Error in /starter: {e}")
+        await message.reply_text("⚠️ Error while processing starter info.")
+        print("Error:", e)
