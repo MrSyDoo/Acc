@@ -328,7 +328,7 @@ async def view_stock_section_cb(client, cb):
             acc_doc = await db.find_account_by_num(item['account_num'])
             if acc_doc:
                 full_items.append({
-                    "price": item.get('price', 0), 
+                    "price": item.get('price', "Don't Selling"), 
                     "acc_num": acc_doc['account_num'], 
                     "country": acc_doc.get('country', 'N/A'), 
                     "age": acc_doc.get('age', 'Unknown')
