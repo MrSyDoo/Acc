@@ -400,12 +400,17 @@ db = Database(Config.DB_URL, Config.DB_NAME)
 # =====================================================================================
 
 import phonenumbers
-from phonenumbers import geocoder, NumberParseException
+from phonenumbers.phonenumberutil import NumberParseException
 
 def get_country_from_phone(phone_number: str) -> str:
     try:
         parsed = phonenumbers.parse(phone_number)
-        return phonenumbers.region_code_for_number(parsed)
+        region = phonenumbers.region_code_for_number(parsed)
+        if not region:
+            return "N/A"
+
+        flag = "".join(chr(127397 + ord(c)) for c in region.upper())
+        return f"{flag} {region}"
     except NumberParseException:
         return "N/A"
 
