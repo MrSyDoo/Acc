@@ -138,9 +138,7 @@ from telethon.errors import (
     PhoneCodeInvalidError,
     AuthKeyUnregisteredError,
 )
-from pyromod.exceptions import ListenerTimeout
-from config import ADMINS, ParseMode
-from utils import db, get_country_from_phone, get_account_age, check_2fa
+
 
 @Client.on_message(filters.command("addacc") & filters.user(ADMINS))
 async def add_account_interactive(client, message):
