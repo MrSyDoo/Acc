@@ -177,7 +177,7 @@ async def add_account_interactive(client, message):
             "account_num": await db.get_next_account_num(),
             "name": me.first_name or me.username or "N/A",
             "phone": phone,
-            "country": get_country_from_phone(phone) if phone != "Unknown" else "Unknown",
+            "country": get_country_from_phone(f"+{phone}) if phone != "Unknown" else "Unknown",
             "age": await get_account_age(tele_client),
             "twofa": await check_2fa(tele_client),
             "session_string": session_str,
