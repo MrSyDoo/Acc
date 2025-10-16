@@ -217,3 +217,101 @@ async def send_msg(user_id, message):
     except Exception as e:
         print(f"{user_id} : {e}")
         return 500
+
+
+
+from pyrogram import Client, filters
+from pyrogram.types import Message
+from datetime import datetime, timezone
+try:
+    from zoneinfo import ZoneInfo
+    IST = ZoneInfo("Asia/Kolkata")
+except Exception:
+    IST = None
+
+
+@Client.on_message(filters.command("starter"))
+async def starter_info(client: Client, message: Message):
+    try:
+        user = message.from_user
+        if not user:
+            await message.reply("❌ Could not identify sender.")
+            return
+
+        # Try fetching complete info
+        try:
+            user = await client.get_users(user.id)
+        except Exception:
+            pass
+
+        # Extract details safely
+        user_id = getattr(user, "id", "Unavailable")
+        first = getattr(user, "first_name", "") or ""
+        last = getattr(user, "last_name", "") or ""
+        name = (first + (" " + last if last else "")).strip() or getattr(user, "username", "Unknown")
+
+        dc = getattr(user, "dc_id", "Unavailable")
+        username = f"@{user.username}" if user.username else "None"
+        premium = "Active" if getattr(user, "is_premium", False) else "Inactive"
+        language = getattr(user, "language_code", "Unavailable")
+        photos_set = "Set" if getattr(user, "photo", None) else "Not set"
+
+        # Message time
+        msg_dt_utc = message.date.replace(tzinfo=timezone.utc)
+        dt_utc_str = msg_dt_utc.strftime("%Y-%m-%d %H:%M UTC")
+        dt_ist_str = (
+            msg_dt_utc.astimezone(IST).strftime("%Y-%m-%d %H:%M (Asia/Kolkata)")
+            if IST else "Unavailable"
+        )
+
+        # Status
+        status = "Unknown"
+        try:
+            s = getattr(user, "status", None)
+            if s:
+                cname = s.__class__.__name__
+                if "Recently" in cname:
+                    status = "Recently"
+                elif "Online" in cname:
+                    status = "Online"
+                elif "Offline" in cname:
+                    ts = getattr(s, "was_online", None)
+                    status = f"Last seen: {ts.strftime('%Y-%m-%d %H:%M UTC')}" if ts else "Offline"
+                elif "LastMonth" in cname:
+                    status = "Last Month"
+                elif "LastWeek" in cname:
+                    status = "Last Week"
+        except Exception:
+            status = "Unavailable"
+
+        scam = "Yes" if getattr(user, "is_scam", False) else "No"
+        fake = "Yes" if getattr(user, "is_fake", False) else "No"
+
+        # Account age (unavailable via Telegram)
+        account_age = "Unavailable (creation date not provided by Telegram API)"
+
+        # Build text
+        text = (
+            "**👤 Starter Info (Real Details)**\n\n"
+            f"**ID:** `{user_id}`\n"
+            f"**Name:** {name}\n"
+            f"**DC:** {dc}\n"
+            f"**Created:** Unavailable\n"
+            f"**Username:** {username}\n"
+            f"**Premium:** {premium}\n"
+            f"**Language:** {language}\n"
+            f"**Date (UTC):** {dt_utc_str}\n"
+            f"**Date (Asia/Kolkata):** {dt_ist_str}\n"
+            f"**Photos:** {photos_set}\n"
+            f"**Status:** {status}\n"
+            f"**Scam Label:** {scam}\n"
+            f"**Fake Label:** {fake}\n"
+            f"**Account Age:** {account_age}"
+        )
+
+        await message.reply(text, quote=True)
+
+    except Exception as e:
+        await message.reply("⚠️ Something went wrong while fetching details.")
+        print(f"Error in /starter: {e}")
+
