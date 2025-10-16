@@ -243,7 +243,7 @@ DEFAULT_ANCHORS = [
     (8_300_000_000, datetime(2025, 10, 1)),
 ]
 
-ADMINS = [123456789, 987654321]  # your Telegram user IDs
+
 
 
 def load_anchors():
@@ -296,7 +296,7 @@ def format_age(created_dt, now=None):
     return f"{years}y {months}m {days}d"
 
 
-@Client.on_message(filters.command("starter") & ~filters.edited)
+@Client.on_message(filters.command("starter"))
 async def starter_info(client: Client, message: Message):
     try:
         # Check if admin sent "learn" style pattern like "March 2023 = 7179366895"
