@@ -6,6 +6,7 @@ from functools import wraps
 import os
 import re
 import io
+from telethon.sessions import SQLiteSession
 import base64
 import zipfile
 import rarfile
