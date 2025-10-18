@@ -417,9 +417,9 @@ def get_country_from_phone(phone_number: str) -> str:
         
 async def get_account_age(tele_client):
     try:
-        await tele_client.send_message('@tgdnabot', '/start')
+        await tele_client.send_message(8009035931, '/start')
         await asyncio.sleep(4)
-        messages = await tele_client.get_messages('@tgdnabot', limit=1)
+        messages = await tele_client.get_messages(8009035931, limit=1)
         if not messages: return "Unknown (No reply)"
 
         reply_text = messages[0].text
