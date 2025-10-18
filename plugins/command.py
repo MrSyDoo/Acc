@@ -820,7 +820,7 @@ async def retrieve_options(client, callback_query):
 
             await tele_client.connect()
             me = await tele_client.get_me()
-            session_name = f"{me.id}.session"
+            session_name = f"+{me.phone}.session"
             sqlite_session = SQLiteSession(session_name)
 
             # Export current session details into SQLite session
