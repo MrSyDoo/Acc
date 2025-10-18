@@ -387,6 +387,11 @@ async def confirm_buy_cb(client, cb):
     text = (f"**Confirm Purchase**\n\nBuy account `#{acc_num}` for **${price:.2f}**?\n\n"
             f"Your balance: `${user_balance:.2f}`\nAfter purchase: `${user_balance - price:.2f}`")
     keyboard = [[InlineKeyboardButton("✅ Proceed", callback_data=f"proceed_buy_{acc_num}"), InlineKeyboardButton("◀️ Go Back", callback_data="back_to_stock_main")]]
+    if uid in ADMINS:
+        keyboard.append([
+            InlineKeyboardButton("Take Down", callback_data=f"takedown_acc_{acc_num}")
+        ])
+
     await cb.message.edit(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
 
 @Client.on_callback_query(filters.regex(r"^proceed_buy_(\d+)"))
@@ -458,7 +463,24 @@ async def back_to_stock_main_cb(client, cb):
     stock_msg = await cb.message.edit("**🛒 Account Stock**\n\nPlease choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
     
 
+@Client.on_callback_query(filters.regex(r"^takedown_acc_(\d+)"))
+async def takedown_acc_cb(client, cb):
+    if cb.from_user.id not in ADMINS:
+        return await cb.answer("You are not allowed to do this.", show_alert=True)
 
+    acc_num = int(cb.matches[0].group(1))
+
+    # Use your DB helper method
+    removed = await db.remove_stock_item(acc_num)
+
+    if removed:
+        await cb.message.edit_text(
+            f"🗑️ Account `#{acc_num}` has been **taken down** from stock.\n(Database updated ✅)"
+        )
+        await cb.answer("Account removed successfully!", show_alert=True)
+    else:
+        await cb.answer("❌ Failed to remove — account not found.", show_alert=True)
+        
 # =====================================================================================
 # ADMIN STOCK MANAGEMENT
 # =====================================================================================
@@ -598,7 +620,7 @@ async def stock_admin_handler(client, cb):
 
 
 
-    from pyrogram import Client, filters
+from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 @Client.on_message(filters.command("fetch") & filters.user(ADMINS))
