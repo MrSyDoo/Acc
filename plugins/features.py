@@ -414,13 +414,13 @@ async def proceed_buy_cb(client, cb):
         
         doc = await db.col.find_one({"account_num": acc_num})
         if not doc:
-            return await callback_query.message.edit("❌ Account not found.")
+            return await cb.message.edit("❌ Account not found.")
             
         session, valid = await check_valid_session(
             doc
         )
         if not session: 
-            await callback_query.answer("This account is invalid, sorry for the inconvenience, please purchase a different account, this one will be removed from stocks.", show_alert=True)
+            await cb.answer("This account is invalid, sorry for the inconvenience, please purchase a different account, this one will be removed from stocks.", show_alert=True)
             syd = await db.remove_stock_item(acc_num)
             if syd:
                 ext = "and removed from stocks"
@@ -438,6 +438,7 @@ async def proceed_buy_cb(client, cb):
 
         await cb.message.edit(f"✅ **Purchase Successful!**\nYou now own account `#{acc_num}`.\nUse `/retrieve {acc_num}` to access it.", parse_mode=ParseMode.MARKDOWN)
         new_balance = await db.get_balance(user_id)
+        await cb.answer("Please make sure to terminate all old sessions after 24 hours. Thanks For Purchasing 😇.", show_alert=True)
         for admin in ADMINS:
             await client.send_message(admin, f"🚨 <b>New Sale!</b> 🚨\nUser: {cb.from_user.mention} (<code>{user_id}</code>)\nAccount: <code>#{acc_num}</code>\nPrice: <code>${price:.2f}</code>\nUser's New Balance: <code>${new_balance:.2f}</code>", parse_mode=ParseMode.HTML)
     finally:
