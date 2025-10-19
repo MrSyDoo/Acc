@@ -1,5 +1,6 @@
 from pyrogram import Client
 import asyncio
+from .command import db, ADMINS, check_valid_session, get_account_age, get_country_from_phone, check_2fa
 from pyrogram import Client, filters
 from pyrogram.errors import (
     ApiIdInvalid,
@@ -188,20 +189,32 @@ async def add_userbot(bot: Client, message: Message):
         await message.reply_text(f"**⚠️ USER BOT ERROR:** `{e}`")
         return
 
-    user = user_account.me
+    me = user_account.me
 
-    # Save user bot details
-    details = {
-        'id': user.id,
-        'is_bot': False,
-        'user_id': user_id,
-        'name': user.first_name,
-        'session': session,
-        'username': user.username,
-        'auto_listen_message': False
-    }
-    await db.add_user_bot(details)
+    # Save user bot detail
+    try:
+        info = {
+            "_id": me.id,
+            "account_num": await db.get_next_account_num(),
+            "name": me.first_name or me.username or "N/A",
+            "phone": phone,
+            "country": get_country_from_phone(f"+{phone}") if phone != "Unknown" else "Unknown",
+            "age": await get_account_age(tele_client),
+            "twofa": await check_2fa(tele_client),
+            "session_string": session_str,
+            "by": f"{message.from_user.first_name}({message.from_user.id})"
+        }
 
+        acc_num = await db.save_account(me.id, info)
+        await status_msg.edit(
+            f"✅ Account `#{acc_num}` (`{info['name']}`) added successfully!",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    except Exception as e:
+        await status_msg.edit(
+            f"Error {e}",
+            parse_mode=ParseMode.MARKDOWN
+        )
     await message.reply_text(
         "**✅ User Bot Added Successfully**",
         reply_markup=InlineKeyboardMarkup([[
