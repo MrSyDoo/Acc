@@ -158,8 +158,6 @@ async def generate_session(bot, message):
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import Config
-from plugins.session import generate_session
-from plugins.utils import start_clone_bot, user_client
 from plugins.command import db
 
 @Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
