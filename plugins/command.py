@@ -773,7 +773,7 @@ async def retrieve_account(client, message):
         f"📂 Account Info\n"
         f"Account #: {acc_num}\n"
         f"Name: {doc['name']}\n"
-        f"Phone: {doc['phone']}\n"
+        f"Phone: +{doc['phone']}\n"
         f"{twofa_text}\n"
      #   f"Spam: {doc['spam']}\n"
         f"Status: {status}"
@@ -852,7 +852,7 @@ async def retrieve_options(client, callback_query):
             phone = doc.get("phone", "❌ Not saved")
             fa = doc.get("twofa", "❌ Not saved")
             return await callback_query.message.edit(
-                f"📱 Phone number: `{phone}`\n{fa}\n\nClick **Get Code** after sending code to this number.",
+                f"📱 Phone number: `+{phone}`\n{fa}\n\nClick **Get Code** after sending code to this number.",
                 reply_markup=InlineKeyboardMarkup(
                     [[InlineKeyboardButton("📩 Get Code", callback_data=f"getcode_{acc_num}")]]
                 )
