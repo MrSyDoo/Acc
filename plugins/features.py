@@ -339,7 +339,20 @@ async def view_stock_section_cb(client, cb):
             return
 
         # 3. Sort and create buttons
-        full_items.sort(key=lambda x: x['price'])
+        def parse_age(a):
+            try:
+                return int(''.join(filter(str.isdigit, str(a['age']))))
+            except:
+                return 0  # Default if unknown or invalid
+
+        def parse_price(p):
+            try:
+                return float(p['price'])
+            except:
+                return float('inf')  # Put "Don't Selling" at the end
+
+        # Sort: by age (descending → old first), then price (ascending)
+        full_items.sort(key=lambda x: (-parse_age(x), parse_price(x)))
         
         buttons = [InlineKeyboardButton(
             f"${i['price']:.2f} - {i['country']} Account - {i['age']}", 
@@ -359,13 +372,13 @@ async def view_stock_section_cb(client, cb):
         )
 
     except Exception as e:
-        # Use cb.message.reply to send the error
         await cb.message.reply(
             f"❌ **An unexpected error occurred while loading stock.**\n\n"
             f"Error details: `{e}`", 
-            quote=True, # Reply to the original message for context
+            quote=True, 
             parse_mode=ParseMode.MARKDOWN
         )
+
 
 
 @Client.on_callback_query(filters.regex(r"^confirm_buy_(\d+)"))
