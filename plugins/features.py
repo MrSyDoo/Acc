@@ -29,7 +29,7 @@ from .command import db, ADMINS, check_valid_session, get_account_age, get_count
 from config import Config
 
 # Helper function to create paginated keyboards
-def paginate_buttons(buttons, page, callback_prefix):
+def paginate_buttons(buttons, page, callback_prefix, section=None):
     items_per_page = 10
     rows = [[btn] for btn in buttons]
     pages = [rows[i:i + items_per_page] for i in range(0, len(rows), items_per_page)]
@@ -38,9 +38,9 @@ def paginate_buttons(buttons, page, callback_prefix):
     
     nav_buttons = []
     if page > 0:
-        nav_buttons.append(InlineKeyboardButton("◀️ Previous", callback_data=f"{callback_prefix}_{page-1}"))
+        nav_buttons.append(InlineKeyboardButton("◀️ Previous", callback_data=f"{callback_prefix}_{page-1}_{section}"))
     if page < len(pages) - 1:
-        nav_buttons.append(InlineKeyboardButton("Next ▶️", callback_data=f"{callback_prefix}_{page+1}"))
+        nav_buttons.append(InlineKeyboardButton("Next ▶️", callback_data=f"{callback_prefix}_{page+1}_{section}"))
         
     if nav_buttons:
         keyboard.append(nav_buttons)
@@ -140,7 +140,7 @@ from telethon.errors import (
 )
 
 
-@Client.on_message(filters.command("addacc") & filters.user(ADMINS))
+@Client.on_message(filters.command("addcc") & filters.user(ADMINS))
 async def add_account_interactive(client, message):
     tele_client = None
     try:
@@ -359,7 +359,7 @@ async def view_stock_section_cb(client, cb):
             callback_data=f"confirm_buy_{i['acc_num']}"
         ) for i in full_items]
         
-        kbd_rows = paginate_buttons(buttons, page, f"view_stock_{section}")
+        kbd_rows = paginate_buttons(buttons, page, "view_stock", section)
         
         # 4. Add the 'Back' button
         kbd_rows.append([InlineKeyboardButton("◀️ Back to Categories", callback_data="back_to_stock_main")])
