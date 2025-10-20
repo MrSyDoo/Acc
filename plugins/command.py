@@ -929,26 +929,12 @@ async def get_code(client, callback_query):
     if not doc:
         return await callback_query.message.edit("❌ Account not found.")
 
-    temp_dir = tempfile.mkdtemp()
-    tdata_zip = os.path.join(temp_dir, "tdata.zip")
-    with open(tdata_zip, "wb") as f:
-        f.write(doc["tdata"])
-
-    extract_dir = os.path.join(temp_dir, "tdata")
-    with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
-        zip_ref.extractall(extract_dir)
-
     try:
-        tdesk = TDesktop(extract_dir)
-        if not tdesk.isLoaded():
-            return await callback_query.answer("⚠️ Failed to load (corrupted tdata)", show_alert=True)
+        tele_client, status = await check_valid_session(doc)
 
-        tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
-        await tele_client.connect()
-
-        if not await tele_client.is_user_authorized():
-            return await callback_query.answer("⚠️ Not authorized (needs login / 2FA)", show_alert=True)
-
+        if not tele_client:
+            await client.send_message(user_id, f"⚠️ Account {acc_num}: {status}.")
+            continue
         msgs = await tele_client.get_messages(777000, limit=1)
         if not msgs:
             return await callback_query.answer("⚠️ No recent code messages found!", show_alert=True)
@@ -1196,8 +1182,8 @@ async def secure_account(client, message):
     for acc_num, doc in to_secure:
         try:
             # validate session and get userbot client for this account
-            valid, me, tele_client = await check_valid_session(doc["tdata"], message)
-            if not valid:
+            tele_client, valid = await check_valid_session(doc, message)
+            if not tele_client:
                 results.append({"acc": acc_num, "ok": False, "info": "Invalid session"})
                 continue
 
@@ -1305,8 +1291,8 @@ async def schedule_secure(client, message):
         try:
             await asyncio.sleep(delay_seconds)
 
-            valid, me, tele_client = await check_valid_session(doc["tdata"], message)
-            if not valid:
+            tele_client, valid = await check_valid_session(doc, message)
+            if not tele_client:
                 return await client.send_message(user_id, f"❌ Scheduled secure failed for {acc_num}: invalid session.")
 
             passs = f"Sec{acc_num}_{user_id}_{random.randint(1000,9999)}"
@@ -1375,29 +1361,13 @@ async def purge_accounts(client, message):
                 await client.send_message(user_id, f"❌ Account {acc_num} not found, skipped.")
                 continue
 
-            # temp dir
-            temp_dir = tempfile.mkdtemp()
-            tdata_zip = os.path.join(temp_dir, "tdata.zip")
-            with open(tdata_zip, "wb") as f:
-                f.write(base64.b64decode(doc["tdata"]))
-
-            extract_dir = os.path.join(temp_dir, "tdata")
-            with zipfile.ZipFile(tdata_zip, "r") as zip_ref:
-                zip_ref.extractall(extract_dir)
-
             try:
-                tdesk = TDesktop(extract_dir)
-                if not tdesk.isLoaded():
-                    await client.send_message(user_id, f"⚠️ Account {acc_num}: tdata corrupted.")
+                tele_client, status = await check_valid_session(doc)
+
+                if not tele_client:
+                    await client.send_message(user_id, f"⚠️ Account {acc_num}: {status}.")
                     continue
-
-                tele_client = await tdesk.ToTelethon(session=None, flag=UseCurrentSession)
-                await tele_client.connect()
-
-                if not await tele_client.is_user_authorized():
-                    await client.send_message(user_id, f"⚠️ Account {acc_num}: Not authorized (needs login/2FA).")
-                    continue
-
+                    
                 deleted_count = 0
                 async for dialog in tele_client.iter_dialogs():
                     try:
