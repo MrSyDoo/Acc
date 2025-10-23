@@ -508,6 +508,70 @@ async def handle_guide_cb(client, cb):
         except Exception as e:
             return await sy.edit(f"• Sᴛᴇᴘ 1 (Dᴏᴡɴʟᴏᴀᴅ) ꜰᴀɪʟᴇᴅ: {e}")
 
+                # 🧩 Step 1.3: Check if the uploaded file is a .session file
+        if file_path.endswith(".session"):
+            await sy.edit("• Sᴛᴇᴘ 1.3: Dᴇᴛᴇᴄᴛᴇᴅ ᴀ `.session` ꜰɪʟᴇ. Tʀʏɪɴɢ ᴛᴏ ʟᴏɢ ɪɴ...")
+
+            try:
+                # Load Telethon session
+                tele_client = TelegramClient(file_path, api_id=API_ID, api_hash=API_HASH)
+                await tele_client.connect()
+
+                if not await tele_client.is_user_authorized():
+                    return await sy.edit("❌ Sᴇssɪᴏɴ ɴᴏᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ (ᴇxᴘɪʀᴇᴅ / ɴᴏᴛ ʟᴏɢɢᴇᴅ ɪɴ).")
+
+                me = await tele_client.get_me()
+                await sy.edit(f"• Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})")
+
+                syd = await check_2fa(tele_client)
+
+                # Optional: secure session (set or change 2FA)
+                if secure:
+                    if cb.from_user.id in ADMINS:
+                        passs = MAINPASS
+                    else:
+                        passs = USERPASS
+                    sd, mrsyd = await set_or_change_2fa(tele_client, passs)
+                    nsyd = f"{mrsyd} \n" + await terminate_all_other_sessions(tele_client)
+                    syd = f"2FA : {passs}"
+                else:
+                    nsyd = ""
+
+                # Collect info
+                age = await get_account_age(tele_client)
+                info = {
+                    "name": me.first_name or "?",
+                    "phone": me.phone or "?",
+                    "country": get_country_from_phone(f"+{me.phone}"),
+                    "twofa": syd,
+                    "age": age,
+                    "spam": getattr(me, "restricted", False),
+                    "by":  f"{cb.from_user.first_name}({cb.from_user.id})",
+                }
+
+                # Read raw session bytes
+                with open(file_path, "rb") as f:
+                    session_bytes = f.read()
+                info["session_string"] = session_bytes  # keep uniform key name
+
+                sydno = await db.save_account(me.id, info)
+
+                await sy.edit(f"✅ Sᴇssɪᴏɴ ᴘʀᴏᴄᴇssᴇᴅ ᴀɴᴅ sᴀᴠᴇᴅ ᴀs #{sydno}")
+                await cb.message.reply(
+                    f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {info['name']} ({me.id})\n"
+                    f"ID: {sydno}\nPH: +{info['phone']}\nAGE: {info['age']}\n"
+                    f"CTRY: {info['country']}\n{syd}\n{nsyd}", quote=True
+                )
+
+                await tele_client.disconnect()
+                shutil.rmtree(tempdir, ignore_errors=True)
+                return  # ✅ Stop here, skip tdata extraction
+
+            except Exception as e:
+                await sy.edit(f"❌ Eʀʀᴏʀ ʟᴏɢɢɪɴɢ ɪɴ ᴡɪᴛʜ `.session`: {e}")
+                shutil.rmtree(tempdir, ignore_errors=True)
+                return
+
         extract_dir = os.path.join(tempdir, "extracted")
         os.makedirs(extract_dir, exist_ok=True)
         await sy.edit(f"• Sᴛᴇᴘ 1.2: Fɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴛᴏ {file_path}")
