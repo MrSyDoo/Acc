@@ -467,7 +467,7 @@ async def check_existing_session(account_num, bot):
         # Fetch account document from DB
         doc = await db.find_account_by_num(account_num)
         if not doc:
-            return None, f"❌ Account {account_num} not found in DB."
+            return True, f"❌ Account {account_num} not found in DB."
 
         # Create client from session_string or tdata
         if doc.get("session_string"):
@@ -485,7 +485,7 @@ async def check_existing_session(account_num, bot):
                     return None, f"⚠️ Corrupted tdata for {account_num}"
                 tele_client = await tdesk.ToTelethon(session=None)
         else:
-            return None, f"❌ No session found for {account_num}"
+            return True, f"❌ No session found for {account_num}"
 
         # Try connecting
         await tele_client.connect()
@@ -493,7 +493,7 @@ async def check_existing_session(account_num, bot):
         # Check if still authorized
         if not await tele_client.is_user_authorized():
             await tele_client.disconnect()
-            return None, f"⚠️ Session invalid or logged out for {account_num}"
+            return True, f"⚠️ Session invalid or logged out for {account_num}"
 
         # Test if the account is active (try to send a message to self)
         try:
@@ -506,17 +506,17 @@ async def check_existing_session(account_num, bot):
             try:
                 await bot.send_message(ADMIN_ID, f"🚫 Account {account_num} seems frozen.\nError: {e}")
             except Exception:
-                return None, f"❌ Account {account_num} possibly frozen; couldn't alert admin."
-            return None, f"🚫 Account {account_num} seems frozen."
+                return True, f"❌ Account {account_num} possibly frozen; couldn't alert admin."
+            return True, f"🚫 Account {account_num} seems frozen. Please Buy Another Account, This account will be taken down"
 
-        return tele_client, "✅ Valid session (working, authorized)"
+        return False, "✅ Valid session (working, authorized)"
 
     except Exception as e:
         try:
             await bot.send_message(ADMINS, f"⚠️ Error checking {account_num}: {e}")
         except Exception:
-            return None, f"❌ Failed to notify admin (bot blocked or flood-wait)."
-        return None, f"❌ Error: {e}"
+            return True, f"❌ Failed to notify admin (bot blocked or flood-wait)."
+        return True, f"❌ Error: {e}"
 
     finally:
         if tele_client and not tele_client.is_connected():
