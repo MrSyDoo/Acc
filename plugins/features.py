@@ -711,5 +711,5 @@ async def handle_fetch_cb(client, cb):
     else:
         await cb.message.edit_text(
             f"Retrieved account `{acc_num}` from user `{user_id}`. ✅",
-            parse_mode="markdown"
+            parse_mode=ParseMode.MARKDOWN
         )
