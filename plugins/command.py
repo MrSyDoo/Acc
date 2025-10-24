@@ -1057,7 +1057,7 @@ async def get_code(client, callback_query):
 
         if not tele_client:
             await client.send_message(user_id, f"⚠️ Account {acc_num}: {status}.")
-            continue
+            return
         msgs = await tele_client.get_messages(777000, limit=1)
         if not msgs:
             return await callback_query.answer("⚠️ No recent code messages found!", show_alert=True)
