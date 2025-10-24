@@ -338,12 +338,20 @@ async def view_stock_section_cb(client, cb):
                                   parse_mode=ParseMode.MARKDOWN)
             return
 
-        # 3. Sort and create buttons
+        
         def parse_age(a):
+            age_str = str(a.get("age", "")).lower()
             try:
-                return int(''.join(filter(str.isdigit, str(a['age']))))
+                if "year" in age_str:
+                    num = int(''.join(filter(str.isdigit, age_str)) or 0)
+                    return num * 12  # convert years to months
+                elif "months" in age_str:
+                    num = int(''.join(filter(str.isdigit, age_str)) or 0)
+                    return num
+                else:
+                    return 0
             except:
-                return 0  # Default if unknown or invalid
+                return 0
 
         def parse_price(p):
             try:
