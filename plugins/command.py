@@ -456,7 +456,7 @@ import tempfile, zipfile, os, asyncio
 
 
 
-async def check_existing_session(account_num, db, bot):
+async def check_existing_session(account_num, bot):
     """
     Check if the existing session for given account number is valid.
     Does NOT modify the session (safe for use in read-only checks).
@@ -513,7 +513,7 @@ async def check_existing_session(account_num, db, bot):
 
     except Exception as e:
         try:
-            await bot.send_message(ADMIN_ID, f"⚠️ Error checking {account_num}: {e}")
+            await bot.send_message(ADMINS, f"⚠️ Error checking {account_num}: {e}")
         except Exception:
             return None, f"❌ Failed to notify admin (bot blocked or flood-wait)."
         return None, f"❌ Error: {e}"
