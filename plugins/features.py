@@ -374,7 +374,7 @@ async def view_stock_section_cb(client, cb):
         
         
         await cb.message.edit(
-            f"**Available in `{section}`** ({len(full_items)} total):", 
+            f"**Available in `{section}` ({len(full_items)} total):", 
             reply_markup=InlineKeyboardMarkup(kbd_rows), 
             parse_mode=ParseMode.MARKDOWN
         )
