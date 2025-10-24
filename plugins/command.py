@@ -449,6 +449,81 @@ async def get_account_age(tele_client):
     except Exception as e:
         return f"Unknown (Error {e})"
 
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import RPCError, FloodWaitError
+import tempfile, zipfile, os, asyncio
+
+
+
+async def check_existing_session(account_num, db, bot):
+    """
+    Check if the existing session for given account number is valid.
+    Does NOT modify the session (safe for use in read-only checks).
+    """
+
+    tele_client = None
+    try:
+        # Fetch account document from DB
+        doc = await db.find_account_by_num(account_num)
+        if not doc:
+            return None, f"❌ Account {account_num} not found in DB."
+
+        # Create client from session_string or tdata
+        if doc.get("session_string"):
+            tele_client = TelegramClient(StringSession(doc["session_string"]), API_ID, API_HASH)
+        elif doc.get("tdata"):
+            with tempfile.TemporaryDirectory() as tempdir:
+                zip_path = os.path.join(tempdir, "tdata.zip")
+                with open(zip_path, "wb") as f:
+                    f.write(doc["tdata"])
+                with zipfile.ZipFile(zip_path, "r") as z:
+                    z.extractall(tempdir)
+                from telethon.sessions import TDesktop
+                tdesk = TDesktop(tempdir)
+                if not tdesk.isLoaded():
+                    return None, f"⚠️ Corrupted tdata for {account_num}"
+                tele_client = await tdesk.ToTelethon(session=None)
+        else:
+            return None, f"❌ No session found for {account_num}"
+
+        # Try connecting
+        await tele_client.connect()
+
+        # Check if still authorized
+        if not await tele_client.is_user_authorized():
+            await tele_client.disconnect()
+            return None, f"⚠️ Session invalid or logged out for {account_num}"
+
+        # Test if the account is active (try to send a message to self)
+        try:
+            await tele_client.send_message("me", "✅ Session check OK")
+            await asyncio.sleep(1)
+        except FloodWaitError as e:
+            await asyncio.sleep(e.seconds)
+        except RPCError as e:
+            # Cannot send message = frozen or restricted
+            try:
+                await bot.send_message(ADMIN_ID, f"🚫 Account {account_num} seems frozen.\nError: {e}")
+            except Exception:
+                return None, f"❌ Account {account_num} possibly frozen; couldn't alert admin."
+            return None, f"🚫 Account {account_num} seems frozen."
+
+        return tele_client, "✅ Valid session (working, authorized)"
+
+    except Exception as e:
+        try:
+            await bot.send_message(ADMIN_ID, f"⚠️ Error checking {account_num}: {e}")
+        except Exception:
+            return None, f"❌ Failed to notify admin (bot blocked or flood-wait)."
+        return None, f"❌ Error: {e}"
+
+    finally:
+        if tele_client and not tele_client.is_connected():
+            try:
+                await tele_client.disconnect()
+            except:
+                pass
 
 async def check_valid_session(doc):
     tele_client = None
