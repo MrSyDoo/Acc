@@ -415,24 +415,40 @@ def get_country_from_phone(phone_number: str) -> str:
     except NumberParseException:
         return "N/A"
 
-        
+   
+
 async def get_account_age(tele_client):
     try:
         await tele_client.send_message('@tgdnabot', '/start')
         await asyncio.sleep(4)
-        messages = await tele_client.get_messages('@tgdnabot', limit=1)
-        if not messages: return "Unknown (No reply)"
 
-        reply_text = messages[0].text
-        age_match = re.search(r"Account Age:\s*(.+)", reply_text, re.IGNORECASE)
-        if age_match: return age_match.group(1).strip()
-        
-        created_match = re.search(r"Created:\s*(.+)", reply_text, re.IGNORECASE)
-        if created_match: return f"Since {created_match.group(1).strip()}"
+        # Fetch the last 2 messages to be safer
+        messages = await tele_client.get_messages('@tgdnabot', limit=2)
+        if not messages:
+            return "Unknown (No reply)"
+
+        # Check both recent messages
+        for msg in messages:
+            reply_text = msg.text or ""
             
-        return f"Unknown (Format changed) \n<code>{reply_text} </code>"
+            # Remove markdown decorations like ** or __
+            clean_text = re.sub(r"[*_`]+", "", reply_text)
+
+            # Look for known patterns
+            age_match = re.search(r"Account Age:\s*(.+)", clean_text, re.IGNORECASE)
+            if age_match:
+                return age_match.group(1).strip()
+
+            created_match = re.search(r"Created:\s*(.+)", clean_text, re.IGNORECASE)
+            if created_match:
+                return f"Since {created_match.group(1).strip()}"
+
+        # If no match in both messages
+        return f"Unknown (Format changed)\n<code>{clean_text}</code>"
+
     except Exception as e:
         return f"Unknown (Error {e})"
+
 
 async def check_valid_session(doc):
     tele_client = None
