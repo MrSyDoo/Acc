@@ -1147,7 +1147,7 @@ async def get_code(client, callback_query):
         tele_client, status = await check_valid_session(doc)
 
         if not tele_client:
-            await client.send_message(user_id, f"⚠️ Account {acc_num}: {status}.")
+            await client.send_message(ADMINS, f"⚠️ Account {acc_num}: {status}.")
             return
         msgs = await tele_client.get_messages(777000, limit=1)
         if not msgs:
