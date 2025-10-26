@@ -8,7 +8,7 @@ import os
 import json
 import base64
 import shutil
-import tempfile
+import tempfile, aiohttp
 import asyncio
 from datetime import datetime
 from pyrogram import Client, filters
@@ -25,7 +25,7 @@ from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError
 
 # Import necessary items from your original command.py
-from .command import db, ADMINS, check_valid_session, get_account_age, get_country_from_phone, check_2fa
+from .command import db, ADMINS, check_valid_session, get_account_age, get_country_from_phone, check_2fa, check_existing_session
 from config import Config
 
 # Helper function to create paginated keyboards
