@@ -452,7 +452,7 @@ async def proceed_buy_cb(client, cb):
             return
         mrsyd, txet = await check_existing_session(acc_num, client)
         if mrsyd:
-            await cb.message.edit(status)
+            await cb.message.edit(txet)
             return
         await db.update_balance(user_id, -price)
         success, msg = await db.grant_account(user_id, acc_num)
