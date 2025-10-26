@@ -127,6 +127,122 @@ async def pay_command(client, message):
         await message.reply("Usage: `/pay <user_id> <amount>`\nExample: `/pay 123456 10.50`", parse_mode=ParseMode.MARKDOWN)
 
 # =====================================================================================
+# --- NEW TOP-UP & PAYMENT COMMANDS (NOWPAYMENTS) ---
+# =====================================================================================
+
+# NowPayments API URL
+NOWPAYMENTS_API_URL = "https://api.nowpayments.io/v1/payment"
+
+@Client.on_message(filters.command("topup"))
+async def topup_command(client, message):
+    user_id = message.from_user.id
+    
+    try:
+        # Ask for the amount
+        ask = await message.reply("How much (in **USD**) would you like to top-up?\n\nMinimum: `$1.00`", parse_mode=ParseMode.MARKDOWN)
+        
+        # Listen for the user's reply
+        response = await client.listen(user_id, timeout=300)
+        await ask.delete()
+        
+        # Validate the amount
+        try:
+            amount_usd = float(response.text.strip().replace('$', ''))
+            if amount_usd <= 2.00: # Set a minimum
+                return await response.reply("❌ Minimum top-up amount is $2.00.")
+        except ValueError:
+            return await response.reply("❌ That's not a valid amount. Please start over.")
+        
+        # --- THIS IS THE UPDATED CURRENCY LIST ---
+        currencies = {
+            "USDT (TRC20)": "usdttrc20",
+            "BTC": "btc",
+            "LTC": "ltc",
+            "ETH": "eth",
+            "USDT (BEP20)": "usdtbsc", # NowPayments uses 'usdtbsc' for BEP20
+            "TON": "ton",
+            "SOL": "sol"
+        }
+        # --- END OF UPDATE ---
+        
+        buttons = []
+        for text, data in currencies.items():
+            buttons.append(
+                InlineKeyboardButton(text, callback_data=f"pay_{data}_{amount_usd}")
+            )
+        
+        # This part arranges the buttons nicely
+        keyboard_rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+        
+        await response.reply(
+            f"✅ You want to deposit **${amount_usd:.2f}**.\n\nPlease select your payment currency:",
+            reply_markup=InlineKeyboardMarkup(keyboard_rows),
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    except ListenerTimeout:
+        await message.reply("⏰ Timeout. Process cancelled.")
+    except Exception as e:
+        await message.reply(f"An error occurred: {e}")
+
+
+@Client.on_callback_query(filters.regex(r"^pay_"))
+async def create_payment_callback(client, cb):
+    try:
+        await cb.message.edit("⏳ Generating your payment invoice...")
+        
+        _, crypto_currency, amount_str = cb.data.split("_")
+        amount_usd = float(amount_str)
+        user_id = cb.from_user.id
+
+        # This is the URL NowPayments will send the IPN to
+        ipn_callback_url = f"{Config.BOT_DOMAIN}/payment_webhook"
+
+        # We encode user_id and amount in the order_id for the webhook
+        order_id = f"topup__{user_id}__{amount_usd}"
+
+        headers = {
+            "x-api-key": Config.NOWPAYMENTS_API_KEY
+        }
+        
+        payload = {
+            "price_amount": amount_usd,
+            "price_currency": "usd",
+            "pay_currency": crypto_currency,
+            "ipn_callback_url": ipn_callback_url,
+            "order_id": order_id
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(NOWPAYMENTS_API_URL, headers=headers, json=payload) as resp:
+                if resp.status != 201:
+                    print(await resp.text()) # Log the error
+                    return await cb.message.edit("❌ Failed to create invoice. The payment provider might be down. Please try again later.")
+                
+                payment_info = await resp.json()
+
+        payment_address = payment_info.get("pay_address")
+        crypto_amount = payment_info.get("pay_amount")
+        
+        text = (
+            f"**Please complete your payment:**\n\n"
+            f"Send exactly: `{crypto_amount}` **{crypto_currency.upper()}**\n"
+            f"To address:\n`{payment_address}`\n\n"
+            f"⚠️ **Important:**\n"
+            f"• Send the *exact* amount.\n"
+            f"• This address is for this transaction only.\n\n"
+            f"Your account will be credited automatically after payment confirmation."
+        )
+        
+        await cb.message.edit(text, parse_mode=ParseMode.MARKDOWN)
+
+    except Exception as e:
+        await cb.message.edit(f"An error occurred: {e}")
+
+# =====================================================================================
+# END NEW TOP-UP SECTION
+# =====================================================================================
+# =====================================================================================
 # NEW ACQUISITION & REPORTING COMMANDS
 # =====================================================================================
 
@@ -306,21 +422,15 @@ async def view_stock_section_cb(client, cb):
     try:
         await cb.answer() 
     except:
-        pass # Ignore errors if we can't answer the query (e.g., already answered)
+        pass 
 
     try:
-        # Extract data from callback query
         page = int(cb.matches[0].group(1))
         section = cb.matches[0].group(2)
-        
-        # 1. Fetch items in the specific section
         items = [item async for item in await db.get_stock_in_section(section)]
-        
         if not items:
             await cb.message.edit("This section is currently empty.")
             return
-            
-        # 2. Compile full item details
         full_items = []
         for item in items:
             acc_doc = await db.find_account_by_num(item['account_num'])
@@ -357,9 +467,7 @@ async def view_stock_section_cb(client, cb):
             try:
                 return float(p['price'])
             except:
-                return float('inf')  # Put "Don't Selling" at the end
-
-        # Sort: by age (descending → old first), then price (ascending)
+                return float('inf')
         full_items.sort(key=lambda x: (-parse_age(x), parse_price(x)))
         
         buttons = [InlineKeyboardButton(
