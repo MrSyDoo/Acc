@@ -562,10 +562,10 @@ async def proceed_buy_cb(client, cb):
             for admin in ADMINS:
                 await client.send_message(admin, f"The account: ID {acc_num} \nUser ID: {user_id} \nNumber: {doc['phone']} \nIs invalid {ext}", parse_mode=ParseMode.MARKDOWN)
             return
-        mrsyd, txet = await check_existing_session(acc_num, client)
-        if mrsyd:
-            await cb.message.edit(txet)
-            return
+       # mrsyd, txet = await check_existing_session(acc_num, client)
+     #   if mrsyd:
+           # await cb.message.edit(txet)
+           # return
         await db.update_balance(user_id, -price)
         success, msg = await db.grant_account(user_id, acc_num)
         
