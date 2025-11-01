@@ -14,6 +14,12 @@ class Config(object):
     #2fa
     USERPASS = "YoWaKeUp" #for other user or set = MAINPASS , if don't need
     MAINPASS = "AnYtHing Huh?"
+
+    #purchase
+    USETXT = """ Text
+    Goes 
+    Here
+    """
     # database config
     DB_NAME = os.environ.get("DB_NAME", "cluster0")
     DB_URL = os.environ.get("DB_URL", "")  # ⚠️ Required
