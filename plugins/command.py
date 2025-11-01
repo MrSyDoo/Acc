@@ -1008,7 +1008,7 @@ async def secure_account(client, message):
     for acc_num, doc in to_secure:
         try:
             # validate session and get userbot client for this account
-            tele_client, valid = await check_valid_session(doc, message)
+            tele_client, valid = await check_valid_session(doc)
             if not tele_client:
                 results.append({"acc": acc_num, "ok": False, "info": "Invalid session"})
                 continue
@@ -1117,7 +1117,7 @@ async def schedule_secure(client, message):
         try:
             await asyncio.sleep(delay_seconds)
 
-            tele_client, valid = await check_valid_session(doc, message)
+            tele_client, valid = await check_valid_session(doc)
             if not tele_client:
                 return await client.send_message(user_id, f"❌ Scheduled secure failed for {acc_num}: invalid session.")
 
