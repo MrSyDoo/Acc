@@ -479,7 +479,7 @@ async def check_vali_session(tdata_b64: str, message):
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 @Client.on_callback_query(filters.regex(r"^syd_"))
-async def handle_retrieve_callback(client, cb: CallbackQuery):
+async def handle_retreve_callback(client, cb: CallbackQuery):
     user_id = cb.from_user.id
     data = cb.data
 
@@ -561,66 +561,17 @@ async def process_and_send_sessions(client, message, cursor):
 async def retrieve_account(client, message):
     user_id = message.from_user.id
     if len(message.command) < 2:
-        if user_id in ADMINS:
-            cursor = db.col.find({})
-        else:
-            owned = await db.syd.find_one({"_id": user_id})
-            if not owned or not owned.get("accounts"):
-                return await message.reply("❌ You don’t own any accounts.")
-            cursor = db.col.find({"account_num": {"$in": owned["accounts"]}})
+        buttons = InlineKeyboardMarkup(
+            [[
+                InlineKeyboardButton("📦 Retrieve ALL Accounts", callback_data="syd_all"),
+                InlineKeyboardButton("❌ Cancel", callback_data="syd_cancel")
+            ]]
+        )
+        return await message.reply(
+            "⚠️ Do you want to retrieve **sessions for all your accounts**?\n\n<i>Else Use /retrieve id</i>",
+            reply_markup=buttons
+        )
 
-        temp_dir = tempfile.mkdtemp()
-        found_any = False
-
-        async for doc in cursor:
-            tele_client, status = await check_valid_session(doc)
-            if not tele_client:
-                await message.reply(f"⚠️ Account {doc['account_num']} skipped — {status}")
-                continue
-
-            try:
-                await tele_client.connect()
-                me = await tele_client.get_me()
-
-                session_path = os.path.join(temp_dir, f"+{me.phone}.session")
-                sqlite_session = SQLiteSession(session_path)
-                sqlite_session.set_dc(
-                    tele_client.session.dc_id,
-                    tele_client.session.server_address,
-                    tele_client.session.port
-                )
-                sqlite_session.auth_key = tele_client.session.auth_key
-                sqlite_session.save()
-
-                await tele_client.disconnect()
-                await asyncio.sleep(0.5)
-                found_any = True
-
-            except Exception as e:
-                await message.reply(f"❌ Error for acc {doc['account_num']}: {e}")
-            finally:
-                if tele_client and tele_client.is_connected():
-                    await tele_client.disconnect()
-
-        # zip and send
-        if found_any:
-            zip_path = os.path.join(temp_dir, "sessions.zip")
-            import zipfile
-            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                for file in os.listdir(temp_dir):
-                    if file.endswith(".session"):
-                        zipf.write(os.path.join(temp_dir, file), file)
-
-            await client.send_document(
-                chat_id=user_id,
-                document=zip_path,
-                caption="📦 All your **Telethon session files** zipped together."
-            )
-        else:
-            await message.reply("⚠️ No valid sessions found.")
-
-        shutil.rmtree(temp_dir)
-        return
 
     try:
         acc_num = int(message.command[1])
