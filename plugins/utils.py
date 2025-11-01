@@ -341,7 +341,7 @@ async def get_account_age(tele_client):
 
 
 
-async def check_existing_session(account_num, bot):
+async def check_existing_session(account_num, bot): #removed
     try:
         doc = await db.find_account_by_num(account_num)
         if not doc:
