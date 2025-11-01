@@ -1,8 +1,4 @@
-# =====================================================================================
-# This is the final, complete features.py file.
-# It contains all new commands and fixes, with the trial account feature removed.
-# =====================================================================================
-
+#plugins/features.py/
 import re
 import os
 import json
@@ -11,7 +7,7 @@ import shutil
 import tempfile, aiohttp
 import asyncio
 from datetime import datetime
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
     Message,
@@ -25,7 +21,11 @@ from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError
 
 # Import necessary items from your original command.py
-from .command import db, ADMINS, check_valid_session, get_account_age, get_country_from_phone, check_2fa, check_existing_session
+from .utils import (
+    db, ADMINS, check_valid_session, get_account_age,
+    get_country_from_phone, check_2fa, check_existing_session
+)
+
 from config import Config
 
 # Helper function to create paginated keyboards
@@ -47,21 +47,17 @@ def paginate_buttons(buttons, page, callback_prefix, section=None):
         
     return keyboard
 
-# =====================================================================================
-# NEW UTILITY & BALANCE COMMANDS
-# =====================================================================================
-
-@Client.on_message(filters.command("check_age") & filters.user(ADMINS))
+@Client.on_message(filters.command("age") & filters.user(ADMINS))
 async def check_age_command(client, message):
     if len(message.command) < 2 or not message.command[1].isdigit():
-        return await message.reply("Usage: `/check_age <account_id>`", parse_mode=ParseMode.MARKDOWN)
+        return await message.reply("Usage: `/age <account_id>`", parse_mode=ParseMode.MARKDOWN)
     
     acc_num = int(message.command[1])
     doc = await db.find_account_by_num(acc_num)
     if not doc:
         return await message.reply(f"❌ Account #{acc_num} not found.")
 
-    status_msg = await message.reply(f"⏳ Checking age for account `#{acc_num}`...")
+    status_msg = await message.reply(f"⏳ Checking age for the account `#{acc_num}`...")
     tele_client = None
     try:
         tele_client, status = await check_valid_session(doc)
@@ -139,7 +135,7 @@ async def topup_command(client, message):
     
     try:
         # Ask for the amount
-        ask = await message.reply("How much (in **USD**) would you like to top-up?\n\nMinimum: `$1.00`", parse_mode=ParseMode.MARKDOWN)
+        ask = await message.reply("How much (in **USD**) would you like to top-up?\n\nMinimum Amount:`$2.00`", parse_mode=ParseMode.MARKDOWN)
         
         # Listen for the user's reply
         response = await client.listen(user_id, timeout=300)
@@ -148,7 +144,7 @@ async def topup_command(client, message):
         # Validate the amount
         try:
             amount_usd = float(response.text.strip().replace('$', ''))
-            if amount_usd <= 2.00: # Set a minimum
+            if amount_usd <= 1.99: # Set a minimum
                 return await response.reply("❌ Minimum top-up amount is $2.00.")
         except ValueError:
             return await response.reply("❌ That's not a valid amount. Please start over.")
@@ -175,7 +171,7 @@ async def topup_command(client, message):
         keyboard_rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
         
         await response.reply(
-            f"✅ You want to deposit **${amount_usd:.2f}**.\n\nPlease select your payment currency:",
+            f"✅ Your payment screen for the deposit of **${amount_usd:.2f}** is being created.\n\nPlease select your payment currency:",
             reply_markup=InlineKeyboardMarkup(keyboard_rows),
             parse_mode=ParseMode.MARKDOWN
         )
@@ -373,11 +369,6 @@ async def backup_db_command(client, message):
 # =====================================================================================
 # USER-FACING STOCK COMMANDS
 # =====================================================================================
-
-
-
-
-
 active_stock_messages = {}
 
 @Client.on_message(filters.command("stock"))
@@ -399,19 +390,32 @@ async def stock_command(client, message):
     ]
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
-    stock_msg = await message.reply("**🛒 Account Stock**\n\nPlease choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
+    # This text is formatted exactly as you requested
+    # --- This block is now correctly indented ---
+    text_to_send = (
+        "**🛒 Account Stock**\n\n"
+        "Read The Terms of service and understand the situations in which we offer "
+        "replacement/refunds before your purchases **[V-ToS](https://t.me/MostCheapest/186)**\n\n"
+        "Please choose a category:"
+    )
+
+    stock_msg = await message.reply(
+        text_to_send,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=enums.ParseMode.MARKDOWN, # Assumes 'enums' is imported at the top of your file
+        disable_web_page_preview=True  # This hides the preview for the Telegram link
+    )
+
     active_stock_messages[user_id] = {"msg": stock_msg, "task": None}
 
     async def auto_delete():
-        await asyncio.sleep(300)
+        await asyncio.sleep(300) # Assumes 'asyncio' is imported at the top
         if user_id in active_stock_messages and active_stock_messages[user_id]["msg"].id == stock_msg.id:
             try: await stock_msg.delete()
             except: pass
             active_stock_messages.pop(user_id, None)
 
     active_stock_messages[user_id]["task"] = asyncio.create_task(auto_delete())
-
-
 
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
 async def view_stock_section_cb(client, cb):
@@ -594,7 +598,23 @@ async def back_to_stock_main_cb(client, cb):
     ]
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
 
-    stock_msg = await cb.message.edit("**🛒 Account Stock**\n\nPlease choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
+    # Use standard Markdown, not MarkdownV2
+    text_to_send = (
+        "**🛒 Account Stock**\n\n"
+        "Read The Terms of service and understand the situations in which we offer "
+        "replacement/refunds before your purchases **[V-ToS](https://t.me/MostCheapest/186)**\n\n"
+        "Please choose a category:"
+    )
+
+    stock_msg = await cb.message.edit(
+        text_to_send,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=enums.ParseMode.MARKDOWN,  # <-- CORRECT PARSE MODE
+        disable_web_page_preview=True
+    )
+
+
+
     
 
 @Client.on_callback_query(filters.regex(r"^takedown_acc_(\d+)"))
@@ -689,19 +709,20 @@ async def add_to_section_cb(client, cb):
     await cb.message.edit(text, parse_mode=ParseMode.MARKDOWN)
     client.pending_stock_add = None
 
-
 @Client.on_callback_query(filters.regex(r"^topup"))
 async def handle_guide_cb(client, cb):
    
     text = (
-        "💰 **Top-up Guide**\n\n"
+        "💰 **How to Top-Up Your Account**\n\n"
+        "To add funds to your account, simply use the /topup command in our private chat.\n\n"
+        "Just type **/topup** and send it to begin the process."
     )
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("ᴩᴀʏ", url="t.me/vizean")]
-    ])
 
-    await cb.message.edit_text(text, reply_markup=keyboard)
-    await cb.answer()
+    # Keyboard removed as requested
+    await cb.message.edit_text(text)
+    
+    await cb.answer("Please use /topup to start.")
+
     
 @Client.on_callback_query(filters.regex(r"^stockadmin_") & filters.user(ADMINS))
 async def stock_admin_handler(client, cb):
