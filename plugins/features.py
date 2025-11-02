@@ -522,7 +522,8 @@ async def confirm_buy_cb(client, cb):
     keyboard = [[InlineKeyboardButton("✅ Proceed", callback_data=f"proceed_buy_{acc_num}"), InlineKeyboardButton("◀️ Go Back", callback_data="back_to_stock_main")]]
     if uid in ADMINS:
         keyboard.append([
-            InlineKeyboardButton("Take Down", callback_data=f"takedown_acc_{acc_num}")
+            InlineKeyboardButton("🧾 Refix Price", callback_data=f"refix_price_{acc_num}"),
+            InlineKeyboardButton("❌ Take Down", callback_data=f"takedown_acc_{acc_num}")
         ])
 
     await cb.message.edit(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
@@ -615,6 +616,43 @@ async def back_to_stock_main_cb(client, cb):
     )
 
 
+@Client.on_callback_query(filters.regex(r"^refix_price_(\d+)"))
+async def refix_price_cb(client, cb):
+    """Handle admin price refix requests."""
+    uid = cb.from_user.id
+    if uid not in ADMINS:
+        return await cb.answer("Not allowed!", show_alert=True)
+
+    acc_num = int(cb.matches[0].group(1))
+
+    await cb.message.reply_text(
+        f"💰 Send the new price for account `#{acc_num}`:",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+    try:
+        # Wait for admin reply
+        response = await client.listen(cb.message.chat.id, timeout=60)
+
+        # Validate the response
+        try:
+            new_price = float(response.text.strip())
+        except ValueError:
+            return await response.reply("❌ Invalid amount. Try again with a number.")
+
+        # Update in DB
+        result = await db.col.update_one(
+            {"account_num": acc_num},
+            {"$set": {"price": new_price}}
+        )
+
+        if result.modified_count:
+            await response.reply(f"✅ Price updated to **${new_price:.2f}** for account `#{acc_num}`.")
+        else:
+            await response.reply("⚠️ Could not update (maybe account missing).")
+
+    except asyncio.TimeoutError:
+        await cb.message.reply("⌛ Timed out! Please try again.")
 
     
 
