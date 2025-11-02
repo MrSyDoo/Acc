@@ -7,7 +7,7 @@ dnspython
 Pillow
 aiohttp
 pytz
-pyromod
+#pyromod
 opentele
 psutil
 rarfile
