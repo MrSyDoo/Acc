@@ -7,8 +7,7 @@ from pyrogram.errors import (
     PhoneCodeExpired,
     PhoneCodeInvalid,
     PhoneNumberInvalid,
-    SessionPasswordNeeded,
-    ListenerTimeout
+    SessionPasswordNeeded
 )
 
 from config import Config
@@ -139,4 +138,5 @@ async def generate_session(bot, message):
             pass
         return string_session
     except KeyError:
+
         pass
