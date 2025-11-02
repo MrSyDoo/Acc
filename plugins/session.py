@@ -44,9 +44,12 @@ async def generate_session(bot, message):
     phone_number = phone_number.text
 
     await bot.send_message(user_id, "» ᴛʀʏɪɴɢ ᴛᴏ sᴇɴᴅ ᴏᴛᴩ ᴀᴛ ᴛʜᴇ ɢɪᴠᴇɴ ɴᴜᴍʙᴇʀ...")
-
-    client = Client(name="bot", api_id=Config.API_ID, api_hash=Config.API_HASH, in_memory=True)
-    await client.connect()
+    try:
+        client = Client(name="bot", api_id=Config.API_ID, api_hash=Config.API_HASH, in_memory=True)
+        await client.connect()
+    except Exception as e:
+        await bot.send_message(user_id, e)
+    
     
     
     try:
@@ -140,4 +143,5 @@ async def generate_session(bot, message):
     except KeyError:
 
         pass
+
 
