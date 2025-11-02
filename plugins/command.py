@@ -1,5 +1,4 @@
-# Exceptions & Config
-from pyromod.exceptions import ListenerTimeout
+# Exceptions & Configl
 from config import Txt, Config
 from functools import wraps
 from .utils import (
@@ -42,6 +41,7 @@ from pyrogram.errors import (
     PhoneCodeExpired,
     PhoneNumberInvalid,
     FloodWait,
+    ListenerTimeout
 )
 
 # Telethon
