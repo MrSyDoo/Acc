@@ -45,13 +45,11 @@ async def generate_session(bot, message):
 
     await bot.send_message(user_id, "» ᴛʀʏɪɴɢ ᴛᴏ sᴇɴᴅ ᴏᴛᴩ ᴀᴛ ᴛʜᴇ ɢɪᴠᴇɴ ɴᴜᴍʙᴇʀ...")
     try:
-        client = Client(":memory:", api_id=Config.API_ID, api_hash=Config.API_HASH, in_memory=True)
+        client = Client(":memory:", api_id=Config.API_ID, api_hash=Config.API_HASH, in_memory=True, device_model="Windows 11", system_version="10.0.22631", app_version="5.3.2 x64", lang_code="en", system_lang_code="en-US")
         await client.connect()
     except Exception as e:
         await bot.send_message(user_id, e)
         return
-    
-    
     
     try:
         
@@ -147,6 +145,7 @@ async def generate_session(bot, message):
     except KeyError:
 
         pass
+
 
 
 
