@@ -145,7 +145,6 @@ async def generate_session(bot, message):
 
     try:
         string_session = await client.export_session_string()
-        await client.join_chat("kdrama_english_subtitle_download")
         try:
             await client.disconnect()
         except:
