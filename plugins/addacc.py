@@ -8,9 +8,9 @@ from pyrogram.errors import (
     PhoneCodeExpired,
     PhoneCodeInvalid,
     PhoneNumberInvalid,
-    SessionPasswordNeeded,
-    ListenerTimeout
+    SessionPasswordNeeded
 )
+from pyromod.exceptions import ListenerTimeout
 
 from config import Config
 
