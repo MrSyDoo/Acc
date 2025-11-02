@@ -170,7 +170,7 @@ async def add_userbot(bot: Client, message: Message):
     session = await generate_session(bot, message)
     try:
         # Start the user client
-        user_client = await start_clone_bot(session_str)
+        user_client = await start_clone_bot(session)
         me = await user_client.get_me()
         phone = getattr(me, "phone_number", "Unknown")
     except Exception as e:
