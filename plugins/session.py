@@ -9,7 +9,7 @@ from pyrogram.errors import (
     PhoneNumberInvalid,
     SessionPasswordNeeded
 )
-
+from pyromod.exceptions import ListenerTimeout
 from config import Config
 
 
@@ -140,3 +140,4 @@ async def generate_session(bot, message):
     except KeyError:
 
         pass
+
