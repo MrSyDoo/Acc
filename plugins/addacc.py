@@ -161,7 +161,7 @@ from plugins.session import generate_session
 from plugins.utils import start_clone_bot, user_client
 from plugins.command import db
 
-@Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command('addcc') & filters.user(Config.ADMIN))
 async def add_userbot(bot: Client, message: Message):
     """Add a user bot (Pyrogram session)"""
     try:
