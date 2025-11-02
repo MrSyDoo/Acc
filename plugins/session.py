@@ -49,6 +49,7 @@ async def generate_session(bot, message):
         await client.connect()
     except Exception as e:
         await bot.send_message(user_id, e)
+        return
     
     
     
@@ -72,6 +73,9 @@ async def generate_session(bot, message):
             user_id,
             "» ᴘʜᴏɴᴇ ɴᴜᴍʙᴇʀ ɪɴᴠᴀʟɪᴅ.\n\nᴘʟᴇᴀsᴇ sᴛᴀʀᴛ ɢᴇɴᴇʀᴀᴛɪɴɢ ʏᴏᴜʀ sᴇssɪᴏɴ ᴀɢᴀɪɴ."
         )
+    except Exception as e:
+        await bot.send_message(user_id, f"2, {e}")
+        return
     
     
     try:
@@ -143,5 +147,6 @@ async def generate_session(bot, message):
     except KeyError:
 
         pass
+
 
 
