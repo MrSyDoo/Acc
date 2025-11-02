@@ -195,7 +195,12 @@ class Database:
     # --- Stock & Section Management ---
     async def add_stock_item(self, price: float, acc_num: int, section: str):
         exists = await self.stock.find_one({"account_num": acc_num, "section": section})
-        if exists: return False
+        if exists: 
+            await self.stock.update_one(
+                {"account_num": acc_num, "section": section.strip()},
+                {"$set": {"price": price}}
+            )
+            return False
         await self.stock.insert_one({"account_num": acc_num, "section": section.strip(), "price": price})
         return True
 
