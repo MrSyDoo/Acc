@@ -158,36 +158,25 @@ async def generate_session(bot, message):
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import Config
-from plugins.command import db
+from plugins.utils import db, get_country_from_phone, get_account_age, check_2fa
 
 @Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
 async def add_userbot(bot: Client, message: Message):
     """Add a user bot (Pyrogram session)"""
-    try:
-        # Check if userbot already exists
-        bot_exist = await db.is_user_bot_exist(message.from_user.id)
-        if bot_exist:
-            return await message.reply_text(
-                '**⚠️ User Bot Already Exists**',
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton('User Bot', callback_data='userbot')
-                ]])
-            )
-    except Exception:
-        pass
+    
 
     user_id = message.from_user.id
 
     # Request session string
     session = await generate_session(bot, message)
     try:
-        # Start user bot
-        user_account = await start_clone_bot(user_client(session))
+        # Start the user client
+        user_client = await start_clone_bot(session_str)
+        me = await user_client.get_me()
+        phone = getattr(me, "phone_number", "Unknown")
     except Exception as e:
-        await message.reply_text(f"**⚠️ USER BOT ERROR:** `{e}`")
-        return
+        return await message.reply_text(f"**⚠️ USER BOT ERROR:** `{e}`")
 
-    me = user_account.me
 
     # Save user bot detail
     try:
@@ -199,7 +188,7 @@ async def add_userbot(bot: Client, message: Message):
             "country": get_country_from_phone(f"+{phone}") if phone != "Unknown" else "Unknown",
             "age": await get_account_age(tele_client),
             "twofa": await check_2fa(tele_client),
-            "session_string": session_str,
+            "session_string": session,
             "by": f"{message.from_user.first_name}({message.from_user.id})"
         }
 
@@ -220,37 +209,3 @@ async def add_userbot(bot: Client, message: Message):
         ]])
     )
 
-
-@Client.on_callback_query(filters.regex('^userbot$|^rmuserbot$|^close$'))
-async def userbot_callback(client: Client, callback_query: CallbackQuery):
-    """Handle userbot callback queries."""
-    data = callback_query.data
-    user_id = callback_query.from_user.id
-
-    if data == "userbot":
-        userBot = await db.get_user_bot(user_id)
-        text = f"Name: {userBot['name']}\nUserName: @{userBot['username']}\nUserId: `{userBot['user_id']}`"
-        await callback_query.message.edit(
-            text=text,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("❌ Remove", callback_data="rmuserbot")],
-                [InlineKeyboardButton("✘ Close", callback_data="close")]
-            ])
-        )
-
-    elif data == "rmuserbot":
-        try:
-            await db.remove_user_bot(user_id)
-            await callback_query.message.edit("✅ **User Bot Removed Successfully!**", reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✘ Close", callback_data="close")]
-            ]))
-        except:
-            await callback_query.answer("You've already removed your userbot.", show_alert=True)
-
-    elif data == "close":
-        try:
-            await callback_query.message.delete()
-            await callback_query.message.reply_to_message.delete()
-        except:
-            pass
-        await callback_query.message.continue_propagation()
