@@ -265,17 +265,25 @@ def require_verified(func):
 
 # --- Helper Functions ---
 
-async def check_2fa(client):
+
+async def check_2fa(client, pyrogram=False):
+    """
+    Check if Two-Step Verification (2FA) is enabled.
+    Works for both Pyrogram and Telethon clients.
+    """
     try:
-        pw = await client(GetPasswordRequest())
-        if pw.has_password:   # True if 2FA is enabled
-            return "2FA: Enabled"
+        if pyrogram:
+            try:
+                pw = await client.get_password_hint()
+                return "2FA: Enabled" if pw else "2FA: Disabled"
+            except Exception:
+                return "2FA: Disabled"
         else:
-            return "2FA: Disabled"
-    except PasswordHashInvalidError:
-        return "2FA: Disabled"
+            pw = await client(functions.account.GetPasswordRequest())
+            return "2FA: Enabled" if pw.has_password else "2FA: Disabled"
     except Exception as e:
         return f"2FA: Unknown ({e})"
+
 
 async def set_or_change_2fa(tele_client, new_password: str, old_password: str = None):
     try:
