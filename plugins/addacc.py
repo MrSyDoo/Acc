@@ -1,5 +1,5 @@
 from pyrogram import Client
-
+import time
 import asyncio
 from .command import db, ADMINS, check_valid_session, get_account_age, get_country_from_phone, check_2fa
 from pyrogram import Client, filters
@@ -158,20 +158,14 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import Config
 from plugins.utils import db, get_country_from_phone, get_account_age, check_2fa
-
-#@Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
 async def add_userbot(bot: Client, message: Message):
     """Add a user bot (Pyrogram session)"""
-    
-
     user_id = message.from_user.id
-
-    # Request session string
     session = await generate_session(bot, message)
     try:
-        # Start the user client
         user_client = Client(
-            name=f"user_{user_id}",
+            name=f"user_{user_id}_{int(time.time())}",
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             session_string=session
@@ -179,33 +173,29 @@ async def add_userbot(bot: Client, message: Message):
         await user_client.start()
         me = await user_client.get_me()
         phone = getattr(me, "phone_number", "Unknown")
-    except Exception as e:
-        return await message.reply_text(f"**⚠️ USER BOT ERROR:** `{e}`")
-
-
-    # Save user bot detail
-    try:
         info = {
             "_id": me.id,
             "account_num": await db.get_next_account_num(),
             "name": me.first_name or me.username or "N/A",
             "phone": phone,
             "country": get_country_from_phone(f"+{phone}") if phone != "Unknown" else "Unknown",
-            "age": await get_account_age(tele_client),
-            "twofa": await check_2fa(tele_client),
+            "age": await get_account_age(user_client),
+            "twofa": await check_2fa(user_client),
             "session_string": session,
             "by": f"{message.from_user.first_name}({message.from_user.id})"
         }
-
         acc_num = await db.save_account(me.id, info)
-        await status_msg.edit(
+        await message.reply_text(
             f"✅ Account `#{acc_num}` (`{info['name']}`) added successfully!",
             parse_mode=ParseMode.MARKDOWN
         )
     except Exception as e:
-        await status_msg.edit(
-            f"Error {e}",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    
+        return await message.reply_text(f"**⚠️ USER BOT ERROR:** `{e}`")
 
+    finally:
+        try:
+            await user_client.stop()
+        except:
+            pass
+
+    
