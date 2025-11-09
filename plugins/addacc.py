@@ -159,7 +159,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from config import Config
 from plugins.utils import db, get_country_from_phone, get_account_age, check_2fa
 
-@Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
+#@Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
 async def add_userbot(bot: Client, message: Message):
     """Add a user bot (Pyrogram session)"""
     
