@@ -174,14 +174,14 @@ async def add_userbot(bot: Client, message: Message):
         await user_client.start()
         me = await user_client.get_me()
         phone = getattr(me, "phone_number", "Unknown")
-        syd = await check_2fa(user_client)
+        syd = await check_2fa(user_client, True)
         info = {
             "_id": me.id,
             "account_num": await db.get_next_account_num(),
             "name": me.first_name or me.username or "N/A",
             "phone": phone,
             "country": get_country_from_phone(f"+{phone}") if phone != "Unknown" else "Unknown",
-            "age": await get_account_age(user_client),
+            "age": await get_account_age(user_client, True),
             "twofa": syd,
             "session_string": session,
             "by": f"{message.from_user.first_name}({message.from_user.id})"
