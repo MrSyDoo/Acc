@@ -2,7 +2,7 @@ from pyrogram import Client
 import time
 import asyncio
 from .command import db, ADMINS, check_valid_session, get_account_age, get_country_from_phone, check_2fa
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 from pyrogram.errors import (
     ApiIdInvalid,
     FloodWait,
@@ -187,7 +187,7 @@ async def add_userbot(bot: Client, message: Message):
         acc_num = await db.save_account(me.id, info)
         await message.reply_text(
             f"✅ Account `#{acc_num}` (`{info['name']}`) added successfully!",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=enums.ParseMode.MARKDOWN
         )
     except Exception as e:
         return await message.reply_text(f"**⚠️ USER BOT ERROR:** `{e}`")
