@@ -577,7 +577,7 @@ async def proceed_buy_cb(client, cb):
         await cb.message.edit(f"✅ **Purchase Successful!**\nYou now own account `#{acc_num}`.\nUse `/retrieve {acc_num}` to access it.", parse_mode=ParseMode.MARKDOWN)
         new_balance = await db.get_balance(user_id)
         await cb.answer("Please make sure to terminate all old sessions after 24 hours. Thanks For Purchasing 😇.", show_alert=True)
-        await message.reply_text(Config.USETXT, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Hᴇʟᴩ", url="t.me/vizean")]]))
+        await cb.message.reply(Config.USETXT, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Hᴇʟᴩ", url="t.me/vizean")]]))
         for admin in ADMINS:
             await client.send_message(admin, f"🚨 <b>New Sale!</b> 🚨\nUser: {cb.from_user.mention} (<code>{user_id}</code>)\nAccount: <code>#{acc_num}</code>\nPrice: <code>${price:.2f}</code>\nUser's New Balance: <code>${new_balance:.2f}</code>", parse_mode=ParseMode.HTML)
     finally:
