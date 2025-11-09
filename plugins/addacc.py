@@ -158,6 +158,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import Config
 from plugins.utils import db, get_country_from_phone, get_account_age, check_2fa
+
 @Client.on_message(filters.private & filters.command('addacc') & filters.user(Config.ADMIN))
 async def add_userbot(bot: Client, message: Message):
     """Add a user bot (Pyrogram session)"""
@@ -173,6 +174,7 @@ async def add_userbot(bot: Client, message: Message):
         await user_client.start()
         me = await user_client.get_me()
         phone = getattr(me, "phone_number", "Unknown")
+        syd = await check_2fa(user_client)
         info = {
             "_id": me.id,
             "account_num": await db.get_next_account_num(),
@@ -180,14 +182,20 @@ async def add_userbot(bot: Client, message: Message):
             "phone": phone,
             "country": get_country_from_phone(f"+{phone}") if phone != "Unknown" else "Unknown",
             "age": await get_account_age(user_client),
-            "twofa": await check_2fa(user_client),
+            "twofa": syd,
             "session_string": session,
             "by": f"{message.from_user.first_name}({message.from_user.id})"
         }
         acc_num = await db.save_account(me.id, info)
         await message.reply_text(
-            f"✅ Account `#{acc_num}` (`{info['name']}`) added successfully!",
-            parse_mode=enums.ParseMode.MARKDOWN
+            f"✅ Account `#{acc_num}` (`{info['name']}`) added successfully!"
+            f"Lᴏɢɢᴇᴅ ɪɴ ᴀs {me.first_name or '?'} ({me.id})\n"
+            f"ID: {info.get('account_num', 'N/A')}\n"
+            f"PH: +{me.phone_number if getattr(me, 'phone_number', None) else 'Unknown'}\n"
+            f"AGE: {info.get('age', 'Unknown')}\n"
+            f"CTRY: {info.get('country', 'Unknown')}\n"
+            f"{syd}",
+            quote=True
         )
     except Exception as e:
         return await message.reply_text(f"**⚠️ USER BOT ERROR:** `{e}`")
