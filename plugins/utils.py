@@ -320,13 +320,17 @@ def get_country_from_phone(phone_number: str) -> str:
     except NumberParseException:
         return "N/A"
 
-async def get_account_age(tele_client):
+async def get_account_age(tele_client, is_pyrogram=False):
     try:
         await tele_client.send_message('@tgdnabot', '/start')
         await asyncio.sleep(4)
 
         # Fetch the last 2 messages to be safer
-        messages = await tele_client.get_messages('@tgdnabot', limit=2)
+        if is_pyrogram:
+            messages = await client.get_chat_history('@tgdnabot', limit=2)
+        else:
+            messages = await client.get_messages('@tgdnabot', limit=2)
+
         if not messages:
             return "Unknown (No reply)"
 
