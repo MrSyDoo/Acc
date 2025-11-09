@@ -170,7 +170,13 @@ async def add_userbot(bot: Client, message: Message):
     session = await generate_session(bot, message)
     try:
         # Start the user client
-        user_client = await start_clone_bot(session)
+        user_client = Client(
+            name=f"user_{user_id}",
+            api_id=Config.API_ID,
+            api_hash=Config.API_HASH,
+            session_string=session
+        )
+        await user_client.start()
         me = await user_client.get_me()
         phone = getattr(me, "phone_number", "Unknown")
     except Exception as e:
@@ -201,10 +207,5 @@ async def add_userbot(bot: Client, message: Message):
             f"Error {e}",
             parse_mode=ParseMode.MARKDOWN
         )
-    await message.reply_text(
-        "**✅ User Bot Added Successfully**",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton('❮ Back', callback_data='userbot')
-        ]])
-    )
+    
 
