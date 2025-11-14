@@ -227,6 +227,38 @@ class Database:
     async def get_stock_in_section(self, section: str):
         return self.stock.find({"section": section})
 
+    async def get_categories(self):
+    docs = await self.categories.find({}).to_list(None)
+    return [d["_id"] for d in docs]
+
+    async def add_category(self, name):
+        if await self.categories.find_one({"_id": name}):
+            return False
+        await self.categories.insert_one({"_id": name})
+        return True
+
+    async def remove_category(self, name):
+        await self.categories.delete_one({"_id": name})
+    # also delete all sections inside this category
+        await self.sections.delete_many({"category": name})
+
+    async def rename_category(self, old, new):
+        if await self.categories.find_one({"_id": new}):
+            return False
+        await self.categories.update_one({"_id": old}, {"$set": {"_id": new}})
+        await self.sections.update_many({"category": old}, {"$set": {"category": new}})
+        return True
+
+    async def get_sections_in_category(self, cat):
+        docs = await self.sections.find({"category": cat}).to_list(None)
+        return [d["_id"] for d in docs]
+
+    async def add_section(self, name, category):
+        if await self.sections.find_one({"_id": name, "category": category}):
+            return False
+        await self.sections.insert_one({"_id": name, "category": category})
+        return True
+
     async def get_stock_item_by_acc_num(self, acc_num: int):
         return await self.stock.find_one({"account_num": acc_num})
 
