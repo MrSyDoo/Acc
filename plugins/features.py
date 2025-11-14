@@ -801,7 +801,7 @@ async def stock_admin_handler(client, cb):
 
     # (1) SELECT CATEGORY FOR ADDING SECTION
     if action == "add_sec":
-        categories = await db.get_all_categories()
+        categories = await db.get_categories()
         if not categories:
             return await cb.answer("No categories found. Add a category first.", show_alert=True)
 
@@ -959,10 +959,6 @@ async def cat_add_handler(client, cb):
     try:
         reply = await client.listen(cb.message.chat.id, timeout=60)
         new_cat = reply.text.strip()
-
-        if await db.category_exists(new_cat):
-            return await reply.reply("⚠️ Category already exists!")
-
         syd=await db.add_category(new_cat)
         if syd:
             await reply.reply(f"✅ Category **{new_cat}** added successfully!")
