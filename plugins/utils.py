@@ -58,6 +58,7 @@ class Database:
         self.balances = self.db.balances
         self.locks = self.db.locks
         self.sections = self.db.sections
+        self.categories = self.db.categories
 
     # --- User & Verification Management ---
     async def add_user(self, user_id: int):
