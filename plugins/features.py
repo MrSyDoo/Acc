@@ -963,8 +963,11 @@ async def cat_add_handler(client, cb):
         if await db.category_exists(new_cat):
             return await reply.reply("⚠️ Category already exists!")
 
-        await db.add_category(new_cat)
-        await reply.reply(f"✅ Category **{new_cat}** added successfully!")
+        syd=await db.add_category(new_cat)
+        if syd:
+            await reply.reply(f"✅ Category **{new_cat}** added successfully!")
+        else:
+            await reply.reply(f"**{new_cat}** Already Exists 🙃")
 
     except:
         await cb.message.reply("⏳ Timeout. Please try again.")
