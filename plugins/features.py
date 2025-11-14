@@ -680,9 +680,22 @@ async def takedown_acc_cb(client, cb):
     
 @Client.on_message(filters.command("managestock") & filters.user(ADMINS))
 async def manage_stock_command(client, message):
-    kbd = [[InlineKeyboardButton("➕ Add New Section", callback_data="stockadmin_add_sec"), InlineKeyboardButton("🗑️ Remove a Section", callback_data="stockadmin_rem_sec")],
-           [InlineKeyboardButton("✏️ Rename a Section", callback_data="stockadmin_ren_sec")]]
-    await message.reply("**🛠️ Stock Management**", reply_markup=InlineKeyboardMarkup(kbd))
+    kbd = [[
+            InlineKeyboardButton("➕ Add Category", callback_data="cat_add"),
+            InlineKeyboardButton("🗑 Remove Category", callback_data="cat_remove")
+        ],[
+            InlineKeyboardButton("✏ Rename Category", callback_data="cat_rename")
+        ],[
+            InlineKeyboardButton("📂 Add Section", callback_data="stockadmin_add_sec"),
+            InlineKeyboardButton("🗑 Remove Section", callback_data="stockadmin_rem_sec")
+        ],[
+            InlineKeyboardButton("✏ Rename Section", callback_data="stockadmin_ren_sec")
+    ]]
+    await message.reply(
+        "**🛠 Stock Management Panel**",
+        reply_markup=InlineKeyboardMarkup(kbd)
+    )
+
 
 @Client.on_message(filters.command("add") & filters.user(ADMINS))
 async def add_to_stock_command(client, message):
@@ -811,6 +824,92 @@ async def stock_admin_handler(client, cb):
     elif action == "cancel":
         await cb.message.delete()
 
+@Client.on_callback_query(filters.regex("^cat_add$"))
+async def cat_add_handler(client, cb):
+    await cb.answer()
+    await cb.message.reply("📦 **Send the new category name:**")
+
+    try:
+        reply = await client.listen(cb.message.chat.id, timeout=60)
+        new_cat = reply.text.strip()
+
+        if await db.category_exists(new_cat):
+            return await reply.reply("⚠️ Category already exists!")
+
+        await db.add_category(new_cat)
+        await reply.reply(f"✅ Category **{new_cat}** added successfully!")
+
+    except:
+        await cb.message.reply("⏳ Timeout. Please try again.")
+
+@Client.on_callback_query(filters.regex("^cat_remove$"))
+async def cat_remove_select(client, cb):
+    await cb.answer()
+
+    categories = await db.get_all_categories()
+    if not categories:
+        return await cb.message.reply("😕 No categories found.")
+
+    kbd = [
+        [InlineKeyboardButton(cat, callback_data=f"cat_remove_do|{cat}")]
+        for cat in categories
+    ]
+
+    await cb.message.reply(
+        "🗑 **Select a category to remove:**",
+        reply_markup=InlineKeyboardMarkup(kbd)
+    )
+
+@Client.on_callback_query(filters.regex("^cat_remove_do"))
+async def cat_remove_do(client, cb):
+    await cb.answer()
+    cat = cb.data.split("|")[1]
+
+    await db.remove_category(cat)
+    await cb.message.reply(f"🗑 Category **{cat}** removed successfully.")
+
+@Client.on_callback_query(filters.regex("^cat_rename$"))
+async def cat_rename_select(client, cb):
+    await cb.answer()
+
+    categories = await db.get_all_categories()
+    if not categories:
+        return await cb.message.reply("😕 No categories to rename.")
+
+    kbd = [
+        [InlineKeyboardButton(cat, callback_data=f"cat_rename_do|{cat}")]
+        for cat in categories
+    ]
+
+    await cb.message.reply(
+        "✏ **Select a category to rename:**",
+        reply_markup=InlineKeyboardMarkup(kbd)
+    )
+
+@Client.on_callback_query(filters.regex("^cat_rename_do"))
+async def cat_rename_do(client, cb):
+    await cb.answer()
+
+    old_cat = cb.data.split("|")[1]
+
+    await cb.message.reply(
+        f"✏ **Send the new name for category:** `{old_cat}`"
+    )
+
+    try:
+        reply = await client.listen(cb.message.chat.id, timeout=60)
+        new_name = reply.text.strip()
+
+        if await db.category_exists(new_name):
+            return await cb.message.reply("⚠️ Category with this name already exists!")
+
+        await db.rename_category(old_cat, new_name)
+        await cb.message.reply(
+            f"✅ Category renamed:\n**{old_cat} ➝ {new_name}**"
+        )
+
+    except:
+        await cb.message.reply("⏳ Timeout. Please try again.")
 
 
 
