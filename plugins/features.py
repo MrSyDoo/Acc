@@ -380,18 +380,17 @@ async def stock_command(client, message):
         except: pass
         del active_stock_messages[user_id]
 
-    sections = await db.get_stock_sections()
-    if not sections:
-        return await message.reply("😔 Sorry, there are no stock sections created yet.")
+    categories = await db.get_categories()
+    if not categories:
+        return await message.reply("😔 No stock categories created yet.")
 
     buttons = [
-        InlineKeyboardButton(f"{s} ({await db.count_stock_in_section(s)} IDs)", callback_data=f"view_stock_0_{s}")
-        for s in sections
+        InlineKeyboardButton(cat, callback_data=f"view_cat_{cat}")
+        for cat in categories
     ]
-    keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+    keyboard = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
 
     # This text is formatted exactly as you requested
-    # --- This block is now correctly indented ---
     text_to_send = (
         "**🛒 Account Stock**\n\n"
         "Read The Terms of service and understand the situations in which we offer "
@@ -402,9 +401,11 @@ async def stock_command(client, message):
     stock_msg = await message.reply(
         text_to_send,
         reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=enums.ParseMode.MARKDOWN, # Assumes 'enums' is imported at the top of your file
-        disable_web_page_preview=True  # This hides the preview for the Telegram link
+        parse_mode=enums.ParseMode.MARKDOWN,
+        disable_web_page_preview=True
     )
+
+    
 
     active_stock_messages[user_id] = {"msg": stock_msg, "task": None}
 
@@ -435,7 +436,7 @@ async def view_stock_section_cb(client, cb):
         if not items:
             await cb.message.edit("This section is currently empty.")
             return
-        full_items = []
+        full_items[]
         for item in items:
             acc_doc = await db.find_account_by_num(item['account_num'])
             if acc_doc:
@@ -760,6 +761,22 @@ async def add_to_section_cb(client, cb):
     if skipped: text += f"\nSkipped **{skipped}** (already in section)."
     await cb.message.edit(text, parse_mode=ParseMode.MARKDOWN)
     client.pending_stock_add = None
+
+@Client.on_callback_query(filters.regex("back_to_categories"))
+async def back_to_categories_cb(client, cb):
+    categories = await db.get_categories()
+
+    buttons = [
+        InlineKeyboardButton(cat, callback_data=f"view_cat_{cat}")
+        for cat in categories
+    ]
+    keyboard = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+
+    await cb.message.edit(
+        "**🛒 Account Stock**\n\nSelect a category:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=enums.ParseMode.MARKDOWN
+    )
 
 @Client.on_callback_query(filters.regex(r"^topup"))
 async def handle_guide_cb(client, cb):
