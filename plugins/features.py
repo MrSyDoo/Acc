@@ -436,7 +436,7 @@ async def view_stock_section_cb(client, cb):
         if not items:
             await cb.message.edit("This section is currently empty.")
             return
-        full_items[]
+        full_items = []
         for item in items:
             acc_doc = await db.find_account_by_num(item['account_num'])
             if acc_doc:
