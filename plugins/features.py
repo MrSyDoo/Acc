@@ -35,7 +35,7 @@ def paginate_buttons(buttons, page, callback_prefix, section=None):
     pages = [rows[i:i + items_per_page] for i in range(0, len(rows), items_per_page)]
     
     keyboard = pages[page] if page < len(pages) else []
-    
+    total_pages = len(pages)
     nav_buttons = []
     if page > 0:
         nav_buttons.append(InlineKeyboardButton("◀️ Previous", callback_data=f"{callback_prefix}_{page-1}_{section}"))
@@ -45,7 +45,7 @@ def paginate_buttons(buttons, page, callback_prefix, section=None):
     if nav_buttons:
         keyboard.append(nav_buttons)
         
-    return keyboard
+    return keyboard, total_pages
 
 @Client.on_message(filters.command("age") & filters.user(ADMINS))
 async def check_age_command(client, message):
@@ -480,10 +480,12 @@ async def view_stock_section_cb(client, cb):
             callback_data=f"confirm_buy_{i['acc_num']}"
         ) for i in full_items]
         
-        kbd_rows = paginate_buttons(buttons, page, "view_stock", section)
+        kbd_rows, syd = paginate_buttons(buttons, page, "view_stock", section)
         
         # 4. Add the 'Back' button
-        kbd_rows.append([InlineKeyboardButton("◀️ Back to Categories", callback_data="back_to_stock_main")])
+        kbd_rows.append(
+            [InlineKeyboardButton("◀️ Back to Categories", callback_data="back_to_stock_main"),
+             InlineKeyboardButton(f"{page+1} / {syd}", callback_data="ignore")])
         
         
         await cb.message.edit(
