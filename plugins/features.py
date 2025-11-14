@@ -796,50 +796,158 @@ async def handle_guide_cb(client, cb):
 @Client.on_callback_query(filters.regex(r"^stockadmin_") & filters.user(ADMINS))
 async def stock_admin_handler(client, cb):
     action = cb.data.split("_", 1)[1]
-    
+
+    # (1) SELECT CATEGORY FOR ADDING SECTION
     if action == "add_sec":
+        categories = await db.get_all_categories()
+        if not categories:
+            return await cb.answer("No categories found. Add a category first.", show_alert=True)
+
+        kbd = [
+            [InlineKeyboardButton(cat, callback_data=f"stockadmin_choose_sec_method|{cat}")]
+            for cat in categories
+        ]
+        await cb.message.edit(
+            "📦 **Select a category to add a section:**",
+            reply_markup=InlineKeyboardMarkup(kbd)
+        )
+
+    # (2) CHOOSE METHOD (New or Existing)
+    elif action.startswith("choose_sec_method|"):
+        category = action.split("|")[1]
+
+        kbd = [
+            [InlineKeyboardButton("➕ Add NEW Section",
+                                  callback_data=f"stockadmin_add_new_sec|{category}")],
+            [InlineKeyboardButton("📂 Add EXISTING Section",
+                                  callback_data=f"stockadmin_add_existing_sec|{category}")],
+            [InlineKeyboardButton("◀️ Back", callback_data="stockadmin_back")]
+        ]
+
+        await cb.message.edit(
+            f"📂 **Category:** `{category}`\nChoose an option:",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(kbd)
+        )
+
+    # (3A) ADD NEW SECTION
+    elif action.startswith("add_new_sec|"):
+        category = action.split("|")[1]
+
         try:
-            ask = await cb.message.edit("Please send the name for the new section.")
+            await cb.message.edit(
+                f"🆕 Send the NEW section name for category: `{category}`",
+                parse_mode=ParseMode.MARKDOWN
+            )
             resp = await client.listen(cb.from_user.id, timeout=300)
-            if await db.add_section(resp.text.strip()):
-                await cb.message.edit(f"✅ Section `{resp.text.strip()}` created.", parse_mode=ParseMode.MARKDOWN)
-            else:
-                await cb.message.edit(f"⚠️ Section `{resp.text.strip()}` already exists.", parse_mode=ParseMode.MARKDOWN)
-        except ListenerTimeout: await cb.message.edit("⏰ Timeout.")
-    
+            section_name = resp.text.strip()
+
+            await db.add_section_to_category(category, section_name)
+
+            await cb.message.edit(
+                f"✅ New section **{section_name}** added to category **{category}**.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+        except ListenerTimeout:
+            await cb.message.edit("⏰ Timeout.")
+
+    # (3B) ADD EXISTING SECTION
+    elif action.startswith("add_existing_sec|"):
+        category = action.split("|")[1]
+
+        all_sections = await db.get_all_sections()
+        if not all_sections:
+            return await cb.answer("No existing sections found.", show_alert=True)
+
+        cat_data = await db.get_category(category)
+        existing = cat_data.get("sections", []) if cat_data else []
+
+        available = [s for s in all_sections if s not in existing]
+
+        if not available:
+            return await cb.answer("All existing sections already linked.", show_alert=True)
+
+        kbd = [
+            [InlineKeyboardButton(sec, callback_data=f"stockadmin_attach_sec|{category}|{sec}")]
+            for sec in available
+        ] + [[InlineKeyboardButton("◀️ Back", callback_data="stockadmin_back")]]
+
+        await cb.message.edit(
+            f"📁 **Select an existing section for category:** `{category}`",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(kbd)
+        )
+
+    # (4) ATTACH EXISTING SECTION → CATEGORY
+    elif action.startswith("attach_sec|"):
+        _, category, section = action.split("|")
+
+        await db.add_section_to_category(category, section)
+        await cb.message.edit(
+            f"📌 Added existing section **{section}** to category **{category}**.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
     elif action == "rem_sec":
         sections = await db.get_stock_sections()
-        if not sections: return await cb.answer("No sections to remove.", show_alert=True)
+        if not sections:
+            return await cb.answer("No sections to remove.", show_alert=True)
+
         btns = [[InlineKeyboardButton(s, callback_data=f"stockadmin_del_{s}")] for s in sections]
         btns.append([InlineKeyboardButton("◀️ Back", callback_data="stockadmin_back")])
-        await cb.message.edit("🗑️ Select a section to remove:", reply_markup=InlineKeyboardMarkup(btns))
+
+        await cb.message.edit(
+            "🗑️ Select a section to remove:",
+            reply_markup=InlineKeyboardMarkup(btns)
+        )
 
     elif action.startswith("del_"):
         section = action.replace("del_", "")
         await db.remove_section(section)
-        await cb.message.edit(f"✅ Section `{section}` and its stock items have been deleted.", parse_mode=ParseMode.MARKDOWN)
+        await cb.message.edit(
+            f"✅ Section `{section}` deleted.",
+            parse_mode=ParseMode.MARKDOWN
+        )
 
     elif action == "ren_sec":
         sections = await db.get_stock_sections()
-        if not sections: return await cb.answer("No sections to rename.", show_alert=True)
+        if not sections:
+            return await cb.answer("No sections to rename.", show_alert=True)
+
         btns = [[InlineKeyboardButton(s, callback_data=f"stockadmin_ren_start_{s}")] for s in sections]
         btns.append([InlineKeyboardButton("◀️ Back", callback_data="stockadmin_back")])
-        await cb.message.edit("✏️ Select a section to rename:", reply_markup=InlineKeyboardMarkup(btns))
+
+        await cb.message.edit(
+            "✏️ Select a section to rename:",
+            reply_markup=InlineKeyboardMarkup(btns)
+        )
 
     elif action.startswith("ren_start_"):
         old_name = action.replace("ren_start_", "")
+
         try:
-            ask = await cb.message.edit(f"Renaming `{old_name}`. Send the new name.", parse_mode=ParseMode.MARKDOWN)
+            await cb.message.edit(
+                f"Renaming `{old_name}`. Send the new name.",
+                parse_mode=ParseMode.MARKDOWN
+            )
             resp = await client.listen(cb.from_user.id, timeout=300)
             await db.rename_section(old_name, resp.text.strip())
-            await cb.message.edit(f"✅ Renamed to `{resp.text.strip()}`.", parse_mode=ParseMode.MARKDOWN)
-        except ListenerTimeout: await cb.message.edit("⏰ Timeout.")
+
+            await cb.message.edit(
+                f"✅ Renamed to `{resp.text.strip()}`.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+        except ListenerTimeout:
+            await cb.message.edit("⏰ Timeout.")
 
     elif action == "back":
         await manage_stock_command(client, cb.message)
-    
+
     elif action == "cancel":
         await cb.message.delete()
+
 
 @Client.on_callback_query(filters.regex("^cat_add$"))
 async def cat_add_handler(client, cb):
