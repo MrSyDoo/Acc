@@ -969,8 +969,8 @@ async def cat_add_handler(client, cb):
         else:
             await reply.reply(f"**{new_cat}** Already Exists 🙃")
 
-    except:
-        await cb.message.reply("⏳ Timeout. Please try again.")
+    except Exception as e:
+        await cb.message.reply(f"{e}. Please try again.")
 
 @Client.on_callback_query(filters.regex("^cat_remove$"))
 async def cat_remove_select(client, cb):
