@@ -228,8 +228,8 @@ class Database:
         return self.stock.find({"section": section})
 
     async def get_categories(self):
-    docs = await self.categories.find({}).to_list(None)
-    return [d["_id"] for d in docs]
+        docs = await self.categories.find({}).to_list(None)
+        return [d["_id"] for d in docs]
 
     async def add_category(self, name):
         if await self.categories.find_one({"_id": name}):
