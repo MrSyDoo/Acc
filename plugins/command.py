@@ -1207,9 +1207,6 @@ async def purge_accounts(client, message):
             except Exception as e:
                 await client.send_message(user_id, f"❌ Error purging account {acc_num}: {e}")
 
-            finally:
-                shutil.rmtree(temp_dir)
-
         except Exception as e:
             await client.send_message(user_id, f"🚨 Fatal error in purge for account {acc_num}: {e}")
 
