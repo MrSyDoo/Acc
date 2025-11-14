@@ -359,9 +359,9 @@ async def get_account_age(tele_client, is_pyrogram=False):
 
         # Fetch the last 2 messages to be safer
         if is_pyrogram:
-            messages = await client.get_chat_history('@tgdnabot', limit=2)
+            messages = await tele_client.get_chat_history('@tgdnabot', limit=2)
         else:
-            messages = await client.get_messages('@tgdnabot', limit=2)
+            messages = await tele_client.get_messages('@tgdnabot', limit=2)
 
         if not messages:
             return "Unknown (No reply)"
