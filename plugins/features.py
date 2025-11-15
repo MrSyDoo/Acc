@@ -418,11 +418,40 @@ async def stock_command(client, message):
 
     active_stock_messages[user_id]["task"] = asyncio.create_task(auto_delete())
 
+@Client.on_callback_query(filters.regex(r"^view_cat_(.+)"))
+async def view_category_cb(client, cb):
+    category = cb.matches[0].group(1)
+
+    # Fetch sections under this category
+    sections = await db.get_sections_in_category(category)
+
+    if not sections:
+        return await cb.message.edit(
+            f"**Category:** `{category}`\n\nNo sections found in this category.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("◀️ Back", callback_data="back_to_stock_main")]
+            ]),
+            parse_mode="markdown"
+        )
+
+    kbd = [
+        [InlineKeyboardButton(sec, callback_data=f"view_stock_0_{sec}")]
+        for sec in sections
+    ]
+    kbd.append([InlineKeyboardButton("◀️ Back", callback_data="back_to_stock_main")])
+
+    await cb.message.edit(
+        f"**Category:** `{category}`\n\nSelect a section:",
+        reply_markup=InlineKeyboardMarkup(kbd),
+        parse_mode="markdown"
+    )
+
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
 async def view_stock_section_cb(client, cb):
     
     uid, mid = cb.from_user.id, cb.message.id
     if uid not in active_stock_messages or active_stock_messages[uid]["msg"].id != mid:
+        await cb.message.delete()
         return await cb.answer("Old Message, Start New One!.", show_alert=True)
     try:
         await cb.answer() 
