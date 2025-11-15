@@ -861,7 +861,6 @@ async def stock_admin_handler(client, cb):
             reply_markup=InlineKeyboardMarkup(kbd)
         )
 
-    # (3A) ADD NEW SECTION
     elif action.startswith("add_new_sec|"):
         category = action.split("|")[1]
 
@@ -873,7 +872,7 @@ async def stock_admin_handler(client, cb):
             resp = await client.listen(cb.from_user.id, timeout=300)
             section_name = resp.text.strip()
 
-            await db.add_section_to_category(category, section_name)
+            await db.add_section(section_name, category)
 
             await cb.message.edit(
                 f"✅ New section **{section_name}** added to category **{category}**.",
@@ -891,7 +890,7 @@ async def stock_admin_handler(client, cb):
         if not all_sections:
             return await cb.answer("No existing sections found.", show_alert=True)
 
-        cat_data = await db.get_category(category)
+        cat_data = await db.get_sections_in_category(category)
         existing = cat_data.get("sections", []) if cat_data else []
 
         available = [s for s in all_sections if s not in existing]
@@ -914,7 +913,7 @@ async def stock_admin_handler(client, cb):
     elif action.startswith("attach_sec|"):
         _, category, section = action.split("|")
 
-        await db.add_section_to_category(category, section)
+        await db.add_section(section, category)
         await cb.message.edit(
             f"📌 Added existing section **{section}** to category **{category}**.",
             parse_mode=ParseMode.MARKDOWN
