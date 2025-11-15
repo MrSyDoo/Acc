@@ -208,12 +208,7 @@ class Database:
     async def get_stock_sections(self):
         return [s['name'] async for s in self.sections.find({}, {"_id": 0, "name": 1})]
 
-    async def add_section(self, section_name: str):
-        exists = await self.sections.find_one({"name": section_name})
-        if exists: return False
-        await self.sections.insert_one({"name": section_name})
-        return True
-
+    
     async def remove_section(self, section_name: str):
         await self.stock.delete_many({"section": section_name})
         await self.sections.delete_one({"name": section_name})
@@ -259,6 +254,11 @@ class Database:
             return False
         await self.sections.insert_one({"_id": name, "category": category})
         return True
+
+    async def get_all_sections(self):
+        docs = await self.sections.find({}).to_list(None)
+        return [d["_id"] for d in docs]
+
 
     async def get_stock_item_by_acc_num(self, acc_num: int):
         return await self.stock.find_one({"account_num": acc_num})
