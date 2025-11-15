@@ -247,7 +247,7 @@ class Database:
 
     async def get_sections_in_category(self, cat):
         docs = await self.sections.find({"category": cat}).to_list(None)
-        return [d["_id"] for d in docs]
+        return [d["name"] for d in docs]
 
     async def add_section(self, name, category):
         if await self.sections.find_one({"name": name, "category": category}):
