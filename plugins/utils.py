@@ -250,14 +250,14 @@ class Database:
         return [d["_id"] for d in docs]
 
     async def add_section(self, name, category):
-        if await self.sections.find_one({"_id": name, "category": category}):
+        if await self.sections.find_one({"name": name, "category": category}):
             return False
-        await self.sections.insert_one({"_id": name, "category": category})
+        await self.sections.insert_one({"name": name, "category": category})
         return True
 
     async def get_all_sections(self):
         docs = await self.sections.find({}).to_list(None)
-        return [d["_id"] for d in docs]
+        return [d["name"] for d in docs]
 
 
     async def get_stock_item_by_acc_num(self, acc_num: int):
