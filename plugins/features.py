@@ -1026,7 +1026,7 @@ async def cat_remove_do(client, cb):
 async def cat_rename_select(client, cb):
     await cb.answer()
 
-    categories = await db.get_all_categories()
+    categories = await db.get_categories()
     if not categories:
         return await cb.message.reply("😕 No categories to rename.")
 
@@ -1054,13 +1054,16 @@ async def cat_rename_do(client, cb):
         reply = await client.listen(cb.message.chat.id, timeout=60)
         new_name = reply.text.strip()
 
-        if await db.category_exists(new_name):
-            return await cb.message.reply("⚠️ Category with this name already exists!")
-
-        await db.rename_category(old_cat, new_name)
-        await cb.message.reply(
-            f"✅ Category renamed:\n**{old_cat} ➝ {new_name}**"
-        )
+        
+        syd=await db.rename_category(old_cat, new_name)
+        if syd:
+            await cb.message.reply(
+                f"✅ Category renamed:\n**{old_cat} ➝ {new_name}**"
+            )
+        else:
+            await cb.message.reply(
+                f"Cᴀᴛᴇɢᴏʀʏ ᴅᴇᴏꜱɴᴛ ᴇxɪꜱᴛ."
+            )
 
     except:
         await cb.message.reply("⏳ Timeout. Please try again.")
