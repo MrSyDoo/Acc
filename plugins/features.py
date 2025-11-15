@@ -431,7 +431,7 @@ async def view_category_cb(client, cb):
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("◀️ Back", callback_data="back_to_stock_main")]
             ]),
-            parse_mode="markdown"
+            parse_mode=ParseMode.MARKDOWN
         )
 
     kbd = [
@@ -443,7 +443,7 @@ async def view_category_cb(client, cb):
     await cb.message.edit(
         f"**Category:** `{category}`\n\nSelect a section:",
         reply_markup=InlineKeyboardMarkup(kbd),
-        parse_mode="markdown"
+        parse_mode=ParseMode.MARKDOWN
     )
 
 @Client.on_callback_query(filters.regex(r"^view_stock_(\d+)_(.+)"))
