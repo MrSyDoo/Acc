@@ -256,6 +256,7 @@ class Database:
         return True
 
     async def get_all_sections(self):
+        await self.sections.delete_many({})
         docs = await self.sections.find({}, {"name": 1}).to_list(None)
         return [d.get("name") for d in docs if d.get("name")]
 
