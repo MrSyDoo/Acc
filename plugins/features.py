@@ -891,9 +891,9 @@ async def stock_admin_handler(client, cb):
             return await cb.answer("No existing sections found.", show_alert=True)
 
         cat_data = await db.get_sections_in_category(category)
-        existing = cat_data.get("sections", []) if cat_data else []
+       # existing = cat_data.get("sections", []) if cat_data else []
 
-        available = [s for s in all_sections if s not in existing]
+        available = [s for s in all_sections if s not in cat_data]
 
         if not available:
             return await cb.answer("All existing sections already linked.", show_alert=True)
