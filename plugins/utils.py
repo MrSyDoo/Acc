@@ -256,8 +256,9 @@ class Database:
         return True
 
     async def get_all_sections(self):
-        docs = await self.sections.find({}).to_list(None)
-        return [d["name"] for d in docs]
+        docs = await self.sections.find({}, {"name": 1}).to_list(None)
+        return [d.get("name") for d in docs if d.get("name")]
+
 
 
     async def get_stock_item_by_acc_num(self, acc_num: int):
