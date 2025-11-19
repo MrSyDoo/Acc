@@ -755,43 +755,101 @@ async def add_to_stock_command(client, message):
         for acc in valid_accs:
             await db.col.update_one({"account_num": acc}, {"$set": {"price": price}}, upsert=True)
 
-        sections = await db.get_stock_sections()
-        buttons = [[InlineKeyboardButton(s, callback_data=f"add_to_sec_{s}")] for s in sections]
-        buttons.append([InlineKeyboardButton("➕ Create New Section", callback_data="add_to_sec_new")])
+        categories = await db.get_categories()      # ✅ SHOW CATEGORIES INSTEAD
+
+        buttons = [[InlineKeyboardButton(cat, callback_data=f"add_choose_cat_{cat}")]
+                   for cat in categories]
+
+        buttons.append([InlineKeyboardButton("➕ Create New Category", callback_data="add_new_category")])
         buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="stockadmin_cancel")])
 
         client.pending_stock_add = {"price": price, "accounts": valid_accs}
-        await message.reply(f"Adding `{', '.join(map(str, valid_accs))}` for `${price:.2f}`.\nSelect a section:", reply_markup=InlineKeyboardMarkup(buttons), parse_mode=ParseMode.MARKDOWN)
+        await message.reply(f"Adding `{', '.join(map(str, valid_accs))}` for `${price:.2f}`.\nSelect a category:", reply_markup=InlineKeyboardMarkup(buttons), parse_mode=ParseMode.MARKDOWN)
     except (ValueError, IndexError):
         await message.reply("Usage: `/add <price> <ID1> <ID2>...`", parse_mode=ParseMode.MARKDOWN)
 
-@Client.on_callback_query(filters.regex(r"^add_to_sec_") & filters.user(ADMINS))
-async def add_to_section_cb(client, cb):
-    action = cb.data.split("_")[-1]
-    pending = getattr(client, 'pending_stock_add', None)
-    if not pending: return await cb.message.edit("❌ Error: Timed out. Start `/add` again.")
-
-    price, accounts = pending['price'], pending['accounts']
-    section_name = ""
-    if action == "new":
-        try:
-            ask = await cb.message.edit("Send the name for the new section.")
-            resp = await client.listen(cb.from_user.id, timeout=300)
-            section_name = resp.text.strip()
-            await db.add_section(section_name)
-        except ListenerTimeout: return await cb.message.edit("⏰ Timeout.")
-    else:
-        section_name = cb.data.replace("add_to_sec_", "")
+@Client.on_callback_query(filters.regex(r"^add_choose_cat_") & filters.user(ADMINS))
+async def add_choose_category_cb(client, cb):
+    cat = cb.data.replace("add_choose_cat_", "")
     
+    pending = getattr(client, 'pending_stock_add', None)
+    if not pending:
+        return await cb.message.edit("❌ Error: Timed out. Start `/add` again.")
+
+    # save chosen category
+    pending["category"] = cat
+
+    sections = await db.get_sections_in_category(cat)
+
+    buttons = [[InlineKeyboardButton(s, callback_data=f"add_choose_sec_{s}")]
+               for s in sections]
+
+    buttons.append([InlineKeyboardButton("➕ Create New Section", callback_data="add_new_section")])
+    buttons.append([InlineKeyboardButton("◀️ Back", callback_data="stock_back_to_categories")])
+
+    await cb.message.edit(
+        f"Category: **{cat}**\nChoose section:",
+        reply_markup=InlineKeyboardMarkup(buttons),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+@Client.on_callback_query(filters.regex("^add_new_section$") & filters.user(ADMINS))
+async def add_new_section_cb(client, cb):
+    pending = getattr(client, 'pending_stock_add', None)
+    if not pending:
+        return await cb.message.edit("❌ Error: Timed out. Start `/add` again.")
+
+    category = pending.get("category")
+    if not category:
+        return await cb.message.edit("❌ Error: Missing category.")
+
+    await cb.message.edit("Send the new section name…")
+    resp = await client.listen(cb.from_user.id, timeout=300)
+
+    section_name = resp.text.strip()
+
+    ok = await db.add_section(section_name, category)
+
+    if not ok:
+        return await cb.message.edit("⚠️ Section already exists.")
+
+    pending["section"] = section_name
+
+    return await process_stock_add(client, cb.message, pending)
+
+
+
+async def process_stock_add(client, msg, pending):
+    price = pending["price"]
+    accounts = pending["accounts"]
+    section_name = pending["section"]
+
     added, skipped = 0, 0
+
     for acc in accounts:
-        if await db.add_stock_item(price, acc, section_name): added += 1
-        else: skipped += 1
-            
-    text = f"✅ Added **{added}** accounts to `{section_name}` for `${price:.2f}`."
-    if skipped: text += f"\nSkipped **{skipped}** (already in section)."
-    await cb.message.edit(text, parse_mode=ParseMode.MARKDOWN)
+        if await db.add_stock_item(price, acc, section_name):
+            added += 1
+        else:
+            skipped += 1
+
+    text = f"✅ Added **{added}** accounts to section `{section_name}` for `${price:.2f}`."
+    if skipped:
+        text += f"\nSkipped **{skipped}** (already added)."
+
+    await msg.edit(text, parse_mode=ParseMode.MARKDOWN)
     client.pending_stock_add = None
+
+@Client.on_callback_query(filters.regex(r"^add_choose_sec_") & filters.user(ADMINS))
+async def add_choose_existing_sec(client, cb):
+    section = cb.data.replace("add_choose_sec_", "")
+    pending = getattr(client, 'pending_stock_add', None)
+
+    if not pending:
+        return await cb.message.edit("❌ Error: Timed out. Start `/add` again.")
+
+    pending["section"] = section
+
+    await process_stock_add(client, cb.message, pending)
 
 @Client.on_callback_query(filters.regex("back_to_categories"))
 async def back_to_categories_cb(client, cb):
