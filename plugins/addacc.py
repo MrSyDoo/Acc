@@ -110,7 +110,7 @@ async def generate_telethon_session(bot, message):
 
     # 4. Sign In
     try:
-        await client.sign_in(phone_number, sent.phone_code_hash, otp)
+        await client.sign_in(phone_number, otp, password=None)
     except PhoneCodeInvalidError:
         return await bot.send_message(user_id, "Wrong OTP!")
     except PhoneCodeExpiredError:
