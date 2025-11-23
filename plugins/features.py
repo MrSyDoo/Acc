@@ -28,6 +28,24 @@ from .utils import (
 
 from config import Config
 
+
+
+async def manage_syd_command(client, message):
+    kbd = [[
+            InlineKeyboardButton("➕ Add Category", callback_data="cat_add"),
+            InlineKeyboardButton("🗑 Remove Category", callback_data="cat_remove")
+        ],[
+            InlineKeyboardButton("✏ Rename Category", callback_data="cat_rename")
+        ],[
+            InlineKeyboardButton("📂 Add Section", callback_data="stockadmin_add_sec"),
+            InlineKeyboardButton("🗑 Remove Section", callback_data="stockadmin_rem_sec")
+        ],[
+            InlineKeyboardButton("✏ Rename Section", callback_data="stockadmin_ren_sec")
+    ]]
+    await message.edit(
+        "**🛠 Stock Management Panel**",
+        reply_markup=InlineKeyboardMarkup(kbd)
+    )
 # Helper function to create paginated keyboards
 def paginate_buttons(buttons, page, callback_prefix, section=None):
     items_per_page = 10
@@ -1031,7 +1049,7 @@ async def stock_admin_handler(client, cb):
             await cb.message.edit("⏰ Timeout.")
 
     elif action == "back":
-        await manage_stock_command(client, cb.message)
+        await manage_syd_command(client, cb.message)
 
     elif action == "cancel":
         await cb.message.delete()
