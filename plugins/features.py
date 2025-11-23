@@ -622,15 +622,15 @@ async def back_to_stock_main_cb(client, cb):
         return await cb.answer("Old Message, Start New One..!", show_alert=True)
     
     await cb.answer()
-    sections = await db.get_stock_sections()
-    if not sections:
-        return await cb.message.edit("😔 Sorry, there are no stock sections created yet.")
+    categories = await db.get_categories()
+    if not categories:
+        return await message.reply("😔 No stock categories created yet.")
 
     buttons = [
-        InlineKeyboardButton(f"{s} ({await db.count_stock_in_section(s)} IDs)", callback_data=f"view_stock_0_{s}")
-        for s in sections
+        InlineKeyboardButton(cat, callback_data=f"view_cat_{cat}")
+        for cat in categories
     ]
-    keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+    keyboard = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
 
     # Use standard Markdown, not MarkdownV2
     text_to_send = (
