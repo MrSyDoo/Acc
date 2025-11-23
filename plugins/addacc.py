@@ -156,7 +156,7 @@ async def add_userbot(bot: Client, message: Message):
         )
         await user_client.start()
         me = await user_client.get_me()
-        phone = getattr(me, "phone_number", "Unknown")
+        phone = getattr(me, "phone", "Unknown")
         syd = await check_2fa(user_client, False)
         info = {
             "_id": me.id,
