@@ -453,7 +453,7 @@ async def view_category_cb(client, cb):
         )
 
     kbd = [
-        [InlineKeyboardButton(sec, callback_data=f"view_stock_0_{sec}")]
+        [InlineKeyboardButton(f"{sec} ({await db.count_stock_in_section(sec)} IDs)", callback_data=f"view_stock_0_{sec}")]
         for sec in sections
     ]
     kbd.append([InlineKeyboardButton("◀️ Back", callback_data="back_to_stock_main")])
