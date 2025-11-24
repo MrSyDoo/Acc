@@ -561,6 +561,8 @@ async def process_and_send_sessions(client, message, cursor):
 async def retrieve_account(client, message):
     user_id = message.from_user.id
     if len(message.command) < 2:
+        if user_id not in ADMINS:
+            return await message.reply("Use /retrieve id")
         buttons = InlineKeyboardMarkup(
             [[
                 InlineKeyboardButton("📦 Retrieve ALL Accounts", callback_data="syd_all"),
