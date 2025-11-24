@@ -13,9 +13,137 @@ class temp(object):
     ME = None
     U_NAME = None
     B_NAME = None
+
+
+# chat_picker_categories.py
+from pyrogram import Client, filters
+from pyrogram.raw import types as raw_types
+from pyrogram.types import Message
+
+
+# Map request_id -> semantic category
+REQUEST_MAP = {
+    1: "groups_i_own",
+    2: "groups_i_admin",
+    3: "groups_i_member",
+    4: "channels_i_own_admin",
+    5: "channels_i_member",
+}
+
+def make_request_button(request_id: int, text: str, *,
+                        chat_is_channel: bool = False,
+                        chat_is_created: bool = None,
+                        require_admin: bool = False):
+    """
+    Helper to create a KeyboardButton with a KeyboardButtonRequestChat payload.
+    - request_id: unique integer (signed 32-bit) per button/message
+    - text: visible button text
+    - chat_is_channel: True -> channels, False -> groups
+    - chat_is_created: True -> only chats owned by the user (use for "I own")
+    - require_admin: if True, set user_administrator_rights to request admin chats
+    """
+    user_admin_rights = None
+    if require_admin:
+        # request that the chat has administrator rights for the user
+        # ChatAdministratorRights uses booleans; set at least one True to indicate "admin"
+        user_admin_rights = raw_types.ChatAdministratorRights(
+            change_info=True,
+            post_messages=True,
+            edit_messages=False,
+            delete_messages=False,
+            ban_users=False,
+            invite_users=False,
+            pin_messages=False,
+            add_admins=False
+        )
+
+    request_chat = raw_types.KeyboardButtonRequestChat(
+        request_id=request_id,
+        chat_is_channel=chat_is_channel,
+        chat_is_forum=None,
+        chat_has_username=None,
+        chat_is_created=chat_is_created,
+        user_administrator_rights=user_admin_rights,
+        bot_is_member=None,
+        request_title=True,     # ask Telegram to show the chat title in the confirmation dialog
+        request_username=True,  # include username in confirmation when available
+        request_photo=False
+    )
+    return raw_types.KeyboardButton(text=text, request_chat=request_chat)
+
+@Client.on_message(filters.command("start") & filters.private)
+async def start_cmd(client: Client, message: Message):
+    """
+    Send a single reply keyboard containing several request-chat buttons.
+    Each button has a unique request_id so chat_shared can tell which one was used.
+    """
+    # Build raw buttons (each row can contain multiple buttons, we put one per row)
+    btn1 = make_request_button(1, "👑 Groups I Own", chat_is_channel=False, chat_is_created=True)
+    btn2 = make_request_button(2, "🛡️ Groups I'm Admin", chat_is_channel=False, require_admin=True)
+    btn3 = make_request_button(3, "👥 Groups I'm Member", chat_is_channel=False)
+    btn4 = make_request_button(4, "📢 Channels I Own/Admin", chat_is_channel=True, chat_is_created=None, require_admin=True)
+    btn5 = make_request_button(5, "📡 Channels I'm Member", chat_is_channel=True)
+
+    # Build ReplyKeyboardMarkup using raw types (this is the correct way to send request_chat buttons)
+    reply_markup = raw_types.ReplyKeyboardMarkup(
+        rows=[
+            [btn1],  # row 1
+            [btn2],  # row 2
+            [btn3],  # row 3
+            [btn4],  # row 4
+            [btn5],  # row 5
+        ],
+        one_time_keyboard=True,
+        resize_keyboard=True
+    )
+
+    # Telegram Raw method to send a simple text + raw reply_markup
+    await client.send_message(
+        chat_id=message.chat.id,
+        text="Pick a category — Telegram will open its native chat selector.",
+        reply_markup=reply_markup
+    )
+
+@Client.on_message(filters.chat_shared & filters.private)
+async def chat_shared_handler(client: Client, message: Message):
+    """
+    This handler receives the service message when the user selects a chat in the native picker.
+    message.chat_shared contains at least: request_id and chat_id; title/username may be present
+    (request_title/request_username above requested those fields).
+    """
+    cs = message.chat_shared
+    request_id = getattr(cs, "request_id", None)
+    chat_id = getattr(cs, "chat_id", None)
+    title = getattr(cs, "title", None)
+    username = getattr(cs, "username", None)
+
+    category = REQUEST_MAP.get(request_id, f"unknown_request_{request_id}")
+
+    # Example: respond differently depending on category
+    if category == "groups_i_own":
+        await message.reply_text(f"You used *Groups I Own* picker.\nSelected chat id: `{chat_id}`\nTitle: {title or 'N/A'}\nUsername: @{username or 'N/A'}",
+                                 parse_mode="markdown")
+    elif category == "groups_i_admin":
+        await message.reply_text(f"You used *Groups I'm Admin* picker.\nSelected chat id: `{chat_id}`\nTitle: {title or 'N/A'}",
+                                 parse_mode="markdown")
+    elif category == "groups_i_member":
+        await message.reply_text(f"You used *Groups I'm Member* picker.\nSelected chat id: `{chat_id}`",
+                                 parse_mode="markdown")
+    elif category == "channels_i_own_admin":
+        await message.reply_text(f"You used *Channels I Own/Admin* picker.\nSelected chat id: `{chat_id}`\nTitle: {title or 'N/A'}",
+                                 parse_mode="markdown")
+    elif category == "channels_i_member":
+        await message.reply_text(f"You used *Channels I'm Member* picker.\nSelected chat id: `{chat_id}`",
+                                 parse_mode="markdown")
+    else:
+        await message.reply_text(f"Got chat_shared: request_id={request_id}, chat_id={chat_id}")
+
+
+
+
     
-@Client.on_message(filters.private & filters.command("start"))
-async def start(client, message):
+@Client.on_message(filters.private & filters.command("sart"))
+async def strt(client, message):
     used = message.from_user
     button = InlineKeyboardMarkup([[
         InlineKeyboardButton('Gᴜɪᴅᴇ', callback_data='guide'),
