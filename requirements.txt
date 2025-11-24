@@ -2,12 +2,12 @@ pyrogram==2.0.80
 telethon
 TgCrypto
 motor
-#pyrofork
+pyrofork
 dnspython
 Pillow
 aiohttp
 pytz
-pyromod
+#pyromod
 opentele
 psutil
 rarfile
