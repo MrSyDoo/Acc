@@ -104,7 +104,7 @@ async def start_cmd(client: Client, message: Message):
         reply_markup=reply_markup
     )
 
-@Client.on_message(filters.chat_shared & filters.private)
+#@Client.on_message(filters.chat_shared & filters.private)
 async def chat_shared_handler(client: Client, message: Message):
     """
     This handler receives the service message when the user selects a chat in the native picker.
