@@ -13,13 +13,13 @@ import asyncio
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
+from pyrogram.errors import ListenerTimeout
 from pyrogram.types import (
     Message,
     CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
 )
-from pyromod.exceptions import ListenerTimeout
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError
